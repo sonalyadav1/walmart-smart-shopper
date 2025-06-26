@@ -1,0 +1,81 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  background: #f8fafc;
+  font-family: 'Segoe UI', 'Roboto', 'Arial', sans-serif;
+}
+
+/* Custom Walmart-style header */
+.header-walmart {
+  background: linear-gradient(90deg, #ffe033 0%, #fff 100%);
+  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
+  border-bottom: 2px solid #ffc220;
+}
+
+/* Product Card Customization */
+.product-card {
+  border-radius: 1.25rem;
+  box-shadow: 0 4px 24px 0 rgba(0,113,220,0.08);
+  border: 1.5px solid #e5e7eb;
+  background: #fff;
+  transition: box-shadow 0.2s;
+}
+.product-card:hover {
+  box-shadow: 0 8px 32px 0 rgba(0,113,220,0.16);
+  border-color: #ffc220;
+}
+
+.product-card .product-title {
+  color: #0071dc;
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+.product-card .product-aisle {
+  background: #ffe033;
+  color: #0071dc;
+  font-weight: 600;
+  border-radius: 0.5rem;
+  padding: 0.1rem 0.7rem;
+  font-size: 0.9rem;
+}
+.product-card .product-brand {
+  color: #0071dc;
+  font-weight: 500;
+}
+.product-card .product-price {
+  color: #0071dc;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+/* Custom Add to Cart button */
+.btn-walmart {
+  background: #ffc220;
+  color: #0071dc;
+  font-weight: 700;
+  border-radius: 9999px;
+  border: 2px solid #ffe033;
+  box-shadow: 0 2px 8px 0 rgba(0,113,220,0.08);
+  transition: background 0.2s, color 0.2s;
+}
+.btn-walmart:hover {
+  background: #ffe033;
+  color: #005cb2;
+}
+
+/* Remove button */
+.btn-remove {
+  color: #e11d48;
+  background: #fff0f3;
+  border-radius: 9999px;
+  border: 1.5px solid #e11d48;
+  font-weight: bold;
+  padding: 0.2rem 0.7rem;
+  transition: background 0.2s, color 0.2s;
+}
+.btn-remove:hover {
+  background: #e11d48;
+  color: #fff;
+}
