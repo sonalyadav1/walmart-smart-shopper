@@ -13,17 +13,37 @@ export default function Products() {
     if (savedCart) setCart(JSON.parse(savedCart));
   }, []);
 
+  function handleAddToCart(product) {
+    // Check if product is already in cart
+    const existingItem = cart.find((c) => c.name === product.name && c.brand === product.brand);
+    
+    if (!existingItem) {
+      const newItem = { ...product, quantity: 1 };
+      const updatedCart = [...cart, newItem];
+      setCart(updatedCart);
+      localStorage.setItem("cart", JSON.stringify(updatedCart));
+      
+      // Remove product from products list (edge case fix)
+      setProducts((prev) => prev.filter((p) => !(p.name === product.name && p.brand === product.brand)));
+    }
+  }
+
   function handleAddAllToCart() {
     // Only add valid products (with name and numeric price)
     const validProducts = products.filter(
       (p) => p && typeof p.name === "string" && typeof p.price === "number"
     );
+    
     const newItems = validProducts.filter(
       (p) => !cart.some((c) => c.name === p.name && c.brand === p.brand)
-    );
-    const updated = [...cart, ...newItems];
-    setCart(updated);
-    localStorage.setItem("cart", JSON.stringify(updated));
+    ).map(p => ({ ...p, quantity: 1 }));
+    
+    const updatedCart = [...cart, ...newItems];
+    setCart(updatedCart);
+    localStorage.setItem("cart", JSON.stringify(updatedCart));
+    
+    // Clear all products from the list since they're all added
+    setProducts([]);
   }
 
   function handleRemoveFromProducts(idx) {
@@ -40,49 +60,83 @@ export default function Products() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f6f7fa]">
+    <div className="walmart-bg">
       {/* Walmart-style header */}
-      <header className="header-walmart py-3 px-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <img src="https://1000logos.net/wp-content/uploads/2017/05/Walmart-Logo-2012.png" alt="Walmart Logo" className="h-8 w-auto" />
-          <span className="text-[#0071dc] font-bold text-2xl tracking-tight">Walmart</span>
+      <header className="walmart-header-blue">
+        <div className="walmart-header-logo">
+          <img src="/walmart-logo.png" alt="Walmart Logo" className="walmart-logo-img" />
+          <span className="walmart-logo-text-white">Walmart</span>
         </div>
-        <nav className="flex items-center gap-4">
-          <a href="/ai-agent" className="btn-walmart px-6 py-2">Try AI Agent</a>
-          <a href="/cart" className="bg-[#0071dc] hover:bg-[#005cb2] text-white font-bold px-6 py-2 rounded-full shadow border border-[#0071dc] transition-colors duration-150">
+        
+        {/* Search bar with AI agent button */}
+        <div className="walmart-search-container">
+          <form className="walmart-searchbar" onSubmit={(e) => { e.preventDefault(); }}>
+            <input
+              className="walmart-searchbar-input"
+              type="text"
+              placeholder="What are you looking for?"
+            />
+            <button className="walmart-search-btn" type="submit">
+              <svg className="walmart-search-icon" viewBox="0 0 24 24" fill="none">
+                <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </form>
+          <a href="/ai-agent" className="walmart-ai-button" title="AI Smart Shopper">
+            <span className="walmart-ai-icon">🤖</span>
+          </a>
+        </div>
+
+        <nav className="walmart-nav">
+          <a href="/cart" className="walmart-btn-white walmart-cart-btn">
+            <span className="walmart-cart-icon">🛒</span>
             Cart
             {cart.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-[#ffc220] text-[#0071dc] rounded-full px-2 py-0.5 text-xs font-bold border border-white">{cart.length}</span>
+              <span className="walmart-cart-badge">{cart.length}</span>
             )}
           </a>
         </nav>
       </header>
 
       {/* Main content */}
-      <main className="flex flex-col items-center py-12 px-2">
-        <div className="w-full max-w-4xl">
-          <h2 className="text-3xl font-bold text-[#0071dc] mb-8 text-center tracking-tight">
-            Product Suggestions
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            {products.map((product, idx) => (
-              <ProductCard
-                key={idx}
-                product={product}
-                onRemove={() => handleRemoveFromProducts(idx)}
-                onBrandSwap={(altIdx) => handleBrandSwap(idx, altIdx)}
-              />
-            ))}
-          </div>
+      <main className="walmart-products-main">
+        <div className="walmart-products-header">
+          <h1 className="walmart-products-title">🛍️ Product Suggestions</h1>
           {products.length > 0 && (
-            <button
-              className="mt-10 w-full max-w-md mx-auto btn-walmart px-8 py-4 text-xl block"
-              onClick={handleAddAllToCart}
-              disabled={products.every((p) => cart.some((c) => c.name === p.name && c.brand === p.brand))}
-            >
-              Add All to Cart
+            <button className="walmart-btn-yellow" onClick={handleAddAllToCart}>
+              Add All to Cart ({products.length} items)
             </button>
           )}
+        </div>
+        
+        <div className="walmart-products-list">
+          {products.length === 0 && (
+            <div className="walmart-card walmart-products-empty">
+              <div className="walmart-empty-state">
+                <span className="walmart-empty-icon">📦</span>
+                <h3>No products to show</h3>
+                <p>All products have been added to your cart, or try getting new suggestions from the AI Agent!</p>
+                <div className="walmart-empty-actions">
+                  <a href="/ai-agent" className="walmart-btn-primary">
+                    🤖 Get AI Suggestions
+                  </a>
+                  <a href="/cart" className="walmart-btn-secondary">
+                    🛒 View Cart
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
+          {products.map((product, idx) => (
+            <ProductCard
+              key={`${product.name}-${product.brand}-${idx}`}
+              product={product}
+              onRemove={() => handleRemoveFromProducts(idx)}
+              onBrandSwap={(altIdx) => handleBrandSwap(idx, altIdx)}
+              onAddToCart={() => handleAddToCart(product)}
+              inCart={cart.some((c) => c.name === product.name && c.brand === product.brand)}
+            />
+          ))}
         </div>
       </main>
     </div>

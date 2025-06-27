@@ -50,36 +50,116 @@ export default function AIAgent() {
   }
 
   return (
-    <div className="min-h-screen bg-[#f8fafc]">
-      <header className="header-walmart py-3 px-4 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <img src="https://1000logos.net/wp-content/uploads/2017/05/Walmart-Logo-2012.png" alt="Walmart Logo" className="h-8 w-auto" />
-          <span className="text-[#0071dc] font-bold text-2xl tracking-tight">Walmart</span>
+    <div className="walmart-bg">
+      <header className="walmart-header-blue">
+        <div className="walmart-header-logo">
+          <img src="/walmart-logo.png" alt="Walmart Logo" className="walmart-logo-img" />
+          <span className="walmart-logo-text-white">Walmart</span>
         </div>
-        <nav className="flex items-center gap-4">
-          <a href="/ai-agent" className="btn-walmart px-6 py-2">Try AI Agent</a>
+        
+        {/* Search bar with AI agent button */}
+        <div className="walmart-search-container">
+          <form className="walmart-searchbar" onSubmit={(e) => { e.preventDefault(); router.push('/products'); }}>
+            <input
+              className="walmart-searchbar-input"
+              type="text"
+              placeholder="What are you looking for?"
+            />
+            <button className="walmart-search-btn" type="submit">
+              <svg className="walmart-search-icon" viewBox="0 0 24 24" fill="none">
+                <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+            </button>
+          </form>
+          <div className="walmart-ai-button walmart-ai-active" title="AI Smart Shopper">
+            <span className="walmart-ai-icon">🤖</span>
+          </div>
+        </div>
+
+        <nav className="walmart-nav">
+          <a href="/products" className="walmart-btn-white">Products</a>
+          <a href="/cart" className="walmart-btn-white">
+            <span className="walmart-cart-icon">🛒</span>
+            Cart
+          </a>
         </nav>
       </header>
-      <main className="flex flex-col items-center justify-center py-24 px-4">
-        <h2 className="text-3xl font-bold text-[#0071dc] mb-6 text-center">What do you want to prepare or buy?</h2>
-        <form className="w-full max-w-md flex flex-col gap-6 bg-white p-8 rounded-2xl shadow-lg border border-gray-100" onSubmit={handleSubmit}>
-          <input
-            type="text"
-            placeholder="e.g. pasta dinner for 4"
-            className="border border-[#0071dc] p-3 rounded-lg text-lg focus:ring-2 focus:ring-[#0071dc] outline-none"
-            value={input}
-            onChange={e => setInput(e.target.value)}
-            required
-          />
-          <button
-            type="submit"
-            className="btn-walmart px-6 py-3 text-lg"
-            disabled={loading}
-          >
-            {loading ? "Thinking..." : "Get Suggestions"}
-          </button>
-          {error && <div className="text-red-600 text-sm text-center">{error}</div>}
-        </form>
+      
+      <main className="walmart-ai-main-top">
+        <div className="walmart-ai-hero">
+          <div className="walmart-ai-hero-content">
+            <h1 className="walmart-ai-title">🤖 AI Smart Shopper</h1>
+            <p className="walmart-ai-desc">Describe your shopping need or recipe. The AI will suggest Walmart products, brands, and alternatives instantly!</p>
+            
+            <form className="walmart-ai-form-top" onSubmit={handleSubmit}>
+              <div className="walmart-ai-input-container">
+                <input
+                  className="walmart-ai-input"
+                  type="text"
+                  placeholder="e.g. pasta dinner for 4, cleaning supplies for kitchen"
+                  value={input}
+                  onChange={e => setInput(e.target.value)}
+                  disabled={loading}
+                  required
+                />
+                <button 
+                  className="walmart-ai-submit" 
+                  type="submit" 
+                  disabled={loading}
+                >
+                  {loading ? (
+                    <span className="walmart-loading">⏳ Loading...</span>
+                  ) : (
+                    <span>✨ Get Suggestions</span>
+                  )}
+                </button>
+              </div>
+              {error && <div className="walmart-ai-error">{error}</div>}
+            </form>
+          </div>
+        </div>
+        
+        <section className="walmart-ai-info">
+          <div className="walmart-ai-info-grid">
+            <div className="walmart-card walmart-ai-how">
+              <span className="walmart-info-title"><span>💡</span> How it works</span>
+              <ul className="walmart-info-list">
+                <li>🗣️ Describe what you need in natural language</li>
+                <li>🤖 AI analyzes your request and finds products</li>
+                <li>🏷️ Get suggestions with brands and alternatives</li>
+                <li>🛒 Add items to cart and shop efficiently</li>
+              </ul>
+            </div>
+            
+            <div className="walmart-card walmart-ai-inspiration">
+              <span className="walmart-info-title"><span>✨</span> Example queries</span>
+              <div className="walmart-example-queries">
+                <button className="walmart-example-btn" onClick={() => setInput("ingredients for white sauce pasta")}>
+                  🍝 White sauce pasta ingredients
+                </button>
+                <button className="walmart-example-btn" onClick={() => setInput("cleaning supplies for kitchen")}>
+                  🧽 Kitchen cleaning supplies
+                </button>
+                <button className="walmart-example-btn" onClick={() => setInput("healthy breakfast options")}>
+                  🥗 Healthy breakfast options
+                </button>
+                <button className="walmart-example-btn" onClick={() => setInput("baking ingredients for chocolate cake")}>
+                  🍰 Chocolate cake baking supplies
+                </button>
+              </div>
+            </div>
+            
+            <div className="walmart-card walmart-ai-tips">
+              <span className="walmart-info-title"><span>🎯</span> Pro Tips</span>
+              <ul className="walmart-info-list">
+                <li>Be specific about quantities (e.g., "for 4 people")</li>
+                <li>Mention dietary preferences or restrictions</li>
+                <li>Include the occasion or purpose</li>
+                <li>Ask for alternatives to compare options</li>
+              </ul>
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );
