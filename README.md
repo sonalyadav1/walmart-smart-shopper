@@ -33,7 +33,7 @@ A modern Next.js web prototype for Walmart AI Smart Shopper. This app lets users
 
 ### 1. Clone the repo
 ```sh
-git clone <https://github.com/sonalyadav1/walmart-smart-shopper.git>
+git clone https://github.com/sonalyadav1/walmart-smart-shopper.git
 cd walmart-smart-shopper
 ```
 
