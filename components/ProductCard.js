@@ -1,5 +1,5 @@
 // Displays a product + brand swap buttons
-export default function ProductCard({ product, onRemove, onBrandSwap, onAddToCart, inCart }) {
+export default function ProductCard({ product, onRemove, onBrandSwap, onBackToOriginal, onAddToCart, inCart }) {
   // Format aisle display - remove "aisle" prefix if it already exists
   const formatAisle = (aisle) => {
     if (!aisle) return "N/A";
@@ -40,20 +40,42 @@ export default function ProductCard({ product, onRemove, onBrandSwap, onAddToCar
 
       {product.alternatives && product.alternatives.length > 0 && (
         <div className="walmart-alternatives">
-          <span className="walmart-alternatives-label">Alternative brands:</span>
+          <span className="walmart-alternatives-label">
+            {product.selectedAltIndex !== undefined ? "Currently selected alternative:" : "Alternative brands:"}
+          </span>
           <div className="walmart-alternatives-buttons">
-            {product.alternatives.map((alt, i) => (
+            {/* Show "Back to Original" button if an alternative is currently selected */}
+            {product.selectedAltIndex !== undefined && product.original && (
               <button
-                key={i}
-                className="walmart-alternative-btn"
-                onClick={() => onBrandSwap(i)}
+                className="walmart-original-btn"
+                onClick={onBackToOriginal}
                 type="button"
-                title={`Switch to ${alt.brand || 'alternative brand'}`}
+                title="Switch back to original product"
               >
-                <span className="walmart-alt-brand">{alt.brand || "Generic"}</span>
-                <span className="walmart-alt-price">${alt.price?.toFixed(2) || "N/A"}</span>
+                <span className="walmart-alt-brand">{product.original.brand || "Original"}</span>
+                <span className="walmart-alt-price">${product.original.price?.toFixed(2) || "N/A"}</span>
+                <span className="walmart-original-label">Original</span>
               </button>
-            ))}
+            )}
+            
+            {/* Show alternative buttons (excluding the currently selected one) */}
+            {product.alternatives.map((alt, i) => {
+              // Don't show the currently selected alternative
+              if (product.selectedAltIndex === i) return null;
+              
+              return (
+                <button
+                  key={i}
+                  className="walmart-alternative-btn"
+                  onClick={() => onBrandSwap(i)}
+                  type="button"
+                  title={`Switch to ${alt.brand || 'alternative brand'}`}
+                >
+                  <span className="walmart-alt-brand">{alt.brand || "Generic"}</span>
+                  <span className="walmart-alt-price">${alt.price?.toFixed(2) || "N/A"}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -66,7 +88,21 @@ export default function ProductCard({ product, onRemove, onBrandSwap, onAddToCar
           type="button"
           aria-label={inCart ? 'Product added to cart' : 'Add product to cart'}
         >
-          {inCart ? '✓ Added to Cart' : '🛒 Add to Cart'}
+          {inCart ? (
+            <>
+              <svg className="walmart-cart-btn-icon" viewBox="0 0 24 24" fill="none">
+                <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Added to Cart
+            </>
+          ) : (
+            <>
+              <svg className="walmart-cart-btn-icon" viewBox="0 0 24 24" fill="none">
+                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5 3H3m4 10v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-6M9 19.5h.01M20 19.5h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Add to Cart
+            </>
+          )}
         </button>
       </div>
     </div>

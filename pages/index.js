@@ -50,41 +50,45 @@ export default function Home() {
   return (
     <div className="walmart-bg">
       <header className="walmart-header-blue">
-        <div className="walmart-header-logo">
-          <img src="/walmart-logo.png" alt="Walmart Logo" className="walmart-logo-img" />
-          <span className="walmart-logo-text-white">Walmart</span>
-        </div>
-        
-        {/* Search bar with AI agent button */}
-        <div className="walmart-search-container">
-          <form className="walmart-searchbar" onSubmit={handleSubmit}>
-            <input
-              className="walmart-searchbar-input"
-              type="text"
-              placeholder="What are you looking for?"
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              disabled={loading}
-              required
-            />
-            <button className="walmart-search-btn" type="submit" disabled={loading}>
-              <svg className="walmart-search-icon" viewBox="0 0 24 24" fill="none">
-                <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          </form>
-          <a href="/ai-agent" className="walmart-ai-button" title="AI Smart Shopper">
-            <span className="walmart-ai-icon">🤖</span>
-          </a>
-        </div>
+        <div className="walmart-header-content">
+          <div className="walmart-header-logo">
+            <img src="/walmart-spark.svg" alt="Walmart Logo" className="walmart-spark-img" />
+            <span className="walmart-logo-text-white">Walmart</span>
+          </div>
+          
+          {/* Search bar with AI agent button */}
+          <div className="walmart-search-container">
+            <form className="walmart-searchbar" onSubmit={handleSubmit}>
+              <input
+                className="walmart-searchbar-input"
+                type="text"
+                placeholder="What are you looking for?"
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                disabled={loading}
+                required
+              />
+              <button className="walmart-search-btn" type="submit" disabled={loading}>
+                <svg className="walmart-search-icon" viewBox="0 0 24 24" fill="none">
+                  <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </form>
+            <a href="/ai-agent" className="walmart-ai-button" title="AI Smart Shopper">
+              <img src="/walmart-ai-energetic.svg" alt="AI Assistant" className="walmart-ai-icon-img" />
+            </a>
+          </div>
 
-        <nav className="walmart-nav">
-          <a href="/products" className="walmart-btn-white">Browse Products</a>
-          <a href="/cart" className="walmart-btn-white">
-            <span className="walmart-cart-icon">🛒</span>
-            Cart
-          </a>
-        </nav>
+          <nav className="walmart-nav">
+            <a href="/products" className="walmart-btn-white">Browse Products</a>
+            <a href="/cart" className="walmart-btn-white">
+              <svg className="walmart-cart-svg-icon" viewBox="0 0 24 24" fill="none">
+                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5 3H3m4 10v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-6M9 19.5h.01M20 19.5h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Cart
+            </a>
+          </nav>
+        </div>
       </header>
       
       <main className="walmart-home-main-compact">
@@ -96,7 +100,7 @@ export default function Home() {
             <p className="walmart-hero-subtitle">Get smart product suggestions with our AI-powered shopping assistant</p>
             <div className="walmart-hero-buttons">
               <a href="/ai-agent" className="walmart-btn-yellow walmart-hero-btn">
-                🤖 Try AI Shopping Assistant
+                Try AI Shopping Assistant
               </a>
               <a href="/products" className="walmart-btn-white walmart-hero-btn">
                 Browse Products
@@ -108,17 +112,30 @@ export default function Home() {
         <div className="walmart-home-grid-compact">
           <div className="walmart-home-features">
             <div className="walmart-feature-card">
-              <div className="walmart-feature-icon">🤖</div>
+              <div className="walmart-feature-icon">
+                <img src="/walmart-ai-energetic.svg" alt="AI Assistant" className="walmart-feature-ai-icon" />
+              </div>
               <h3 className="walmart-feature-title">AI Smart Shopping</h3>
               <p className="walmart-feature-desc">Get personalized product recommendations based on your needs</p>
             </div>
             <div className="walmart-feature-card">
-              <div className="walmart-feature-icon">🗺️</div>
+              <div className="walmart-feature-icon">
+                <svg className="walmart-feature-svg-icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#0071ce" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <circle cx="12" cy="10" r="3" stroke="#0071ce" strokeWidth="2"/>
+                </svg>
+              </div>
               <h3 className="walmart-feature-title">Store Navigation</h3>
               <p className="walmart-feature-desc">Find products easily with our interactive store map</p>
             </div>
             <div className="walmart-feature-card">
-              <div className="walmart-feature-icon">💰</div>
+              <div className="walmart-feature-icon">
+                <svg className="walmart-feature-svg-icon" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2v20m-8-8h16" stroke="#0071ce" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M6 6h12v12H6z" stroke="#0071ce" strokeWidth="2" fill="#f9f9f9"/>
+                  <path d="M9 9h6M9 12h6M9 15h6" stroke="#0071ce" strokeWidth="1.5" strokeLinecap="round"/>
+                </svg>
+              </div>
               <h3 className="walmart-feature-title">Best Prices</h3>
               <p className="walmart-feature-desc">Compare brands and find the best deals automatically</p>
             </div>

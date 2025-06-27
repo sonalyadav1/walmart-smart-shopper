@@ -1,0 +1,25 @@
+<svg width="24" height="24" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <!-- Professional AI Assistant - Clean and Simple -->
+  
+  <!-- Clean white background circle for contrast -->
+  <circle cx="12" cy="12" r="11" fill="#ffffff" stroke="#e5e5e5" stroke-width="1"/>
+  
+  <!-- Professional robot head -->
+  <rect x="7" y="6" width="10" height="9" rx="2" ry="2" fill="#f8f9fa" stroke="#0071ce" stroke-width="1.5"/>
+  
+  <!-- Trustworthy, friendly eyes -->
+  <circle cx="9.5" cy="9.5" r="1.5" fill="#0071ce"/>
+  <circle cx="14.5" cy="9.5" r="1.5" fill="#0071ce"/>
+  <circle cx="9.5" cy="9" r="0.5" fill="#ffffff"/>
+  <circle cx="14.5" cy="9" r="0.5" fill="#ffffff"/>
+  
+  <!-- Subtle, professional smile -->
+  <path d="M 9 12 Q 12 14 15 12" stroke="#0071ce" stroke-width="1.5" fill="none" stroke-linecap="round"/>
+  
+  <!-- Simple antenna for AI indication -->
+  <line x1="12" y1="6" x2="12" y2="4" stroke="#0071ce" stroke-width="1.5"/>
+  <circle cx="12" cy="3.5" r="1" fill="#ffc220"/>
+  
+  <!-- Clean professional body -->
+  <rect x="8.5" y="15" width="7" height="6" rx="1.5" ry="1.5" fill="#f8f9fa" stroke="#0071ce" stroke-width="1.5"/>
+</svg>

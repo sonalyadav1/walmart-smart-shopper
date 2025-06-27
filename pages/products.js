@@ -53,8 +53,49 @@ export default function Products() {
   function handleBrandSwap(idx, altIdx) {
     setProducts((prev) => {
       const updated = [...prev];
-      const alt = updated[idx].alternatives[altIdx];
-      updated[idx] = { ...updated[idx], ...alt };
+      const currentProduct = updated[idx];
+      
+      // If this is the first time swapping, store the original
+      if (!currentProduct.original) {
+        currentProduct.original = {
+          name: currentProduct.name,
+          brand: currentProduct.brand,
+          price: currentProduct.price,
+          aisle: currentProduct.aisle
+        };
+      }
+      
+      // Swap to the alternative
+      const alt = currentProduct.alternatives[altIdx];
+      updated[idx] = { 
+        ...currentProduct, 
+        name: alt.name || currentProduct.original.name,
+        brand: alt.brand,
+        price: alt.price,
+        aisle: alt.aisle || currentProduct.original.aisle,
+        selectedAltIndex: altIdx
+      };
+      
+      return updated;
+    });
+  }
+
+  function handleBackToOriginal(idx) {
+    setProducts((prev) => {
+      const updated = [...prev];
+      const currentProduct = updated[idx];
+      
+      if (currentProduct.original) {
+        updated[idx] = {
+          ...currentProduct,
+          name: currentProduct.original.name,
+          brand: currentProduct.original.brand,
+          price: currentProduct.original.price,
+          aisle: currentProduct.original.aisle,
+          selectedAltIndex: undefined
+        };
+      }
+      
       return updated;
     });
   }
@@ -63,39 +104,43 @@ export default function Products() {
     <div className="walmart-bg">
       {/* Walmart-style header */}
       <header className="walmart-header-blue">
-        <div className="walmart-header-logo">
-          <img src="/walmart-logo.png" alt="Walmart Logo" className="walmart-logo-img" />
-          <span className="walmart-logo-text-white">Walmart</span>
-        </div>
-        
-        {/* Search bar with AI agent button */}
-        <div className="walmart-search-container">
-          <form className="walmart-searchbar" onSubmit={(e) => { e.preventDefault(); }}>
-            <input
-              className="walmart-searchbar-input"
-              type="text"
-              placeholder="What are you looking for?"
-            />
-            <button className="walmart-search-btn" type="submit">
-              <svg className="walmart-search-icon" viewBox="0 0 24 24" fill="none">
-                <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          </form>
-          <a href="/ai-agent" className="walmart-ai-button" title="AI Smart Shopper">
-            <span className="walmart-ai-icon">🤖</span>
-          </a>
-        </div>
+        <div className="walmart-header-content">
+          <div className="walmart-header-logo">
+            <img src="/walmart-spark.svg" alt="Walmart Logo" className="walmart-spark-img" />
+            <span className="walmart-logo-text-white">Walmart</span>
+          </div>
+          
+          {/* Search bar with AI agent button */}
+          <div className="walmart-search-container">
+            <form className="walmart-searchbar" onSubmit={(e) => { e.preventDefault(); }}>
+              <input
+                className="walmart-searchbar-input"
+                type="text"
+                placeholder="What are you looking for?"
+              />
+              <button className="walmart-search-btn" type="submit">
+                <svg className="walmart-search-icon" viewBox="0 0 24 24" fill="none">
+                  <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </form>
+            <a href="/ai-agent" className="walmart-ai-button" title="AI Smart Shopper">
+              <img src="/walmart-ai-energetic.svg" alt="AI Shopping Assistant" className="walmart-ai-icon-img" />
+            </a>
+          </div>
 
-        <nav className="walmart-nav">
-          <a href="/cart" className="walmart-btn-white walmart-cart-btn">
-            <span className="walmart-cart-icon">🛒</span>
-            Cart
-            {cart.length > 0 && (
-              <span className="walmart-cart-badge">{cart.length}</span>
-            )}
-          </a>
-        </nav>
+          <nav className="walmart-nav">
+            <a href="/cart" className="walmart-btn-white walmart-cart-btn">
+              <svg className="walmart-cart-svg-icon" viewBox="0 0 24 24" fill="none">
+                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5 3H3m4 10v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-6M9 19.5h.01M20 19.5h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Cart
+              {cart.length > 0 && (
+                <span className="walmart-cart-badge">{cart.length}</span>
+              )}
+            </a>
+          </nav>
+        </div>
       </header>
 
       {/* Main content */}
@@ -118,7 +163,7 @@ export default function Products() {
                 <p>All products have been added to your cart, or try getting new suggestions from the AI Agent!</p>
                 <div className="walmart-empty-actions">
                   <a href="/ai-agent" className="walmart-btn-primary">
-                    🤖 Get AI Suggestions
+                    Get AI Suggestions
                   </a>
                   <a href="/cart" className="walmart-btn-secondary">
                     🛒 View Cart
@@ -133,6 +178,7 @@ export default function Products() {
               product={product}
               onRemove={() => handleRemoveFromProducts(idx)}
               onBrandSwap={(altIdx) => handleBrandSwap(idx, altIdx)}
+              onBackToOriginal={() => handleBackToOriginal(idx)}
               onAddToCart={() => handleAddToCart(product)}
               inCart={cart.some((c) => c.name === product.name && c.brand === product.brand)}
             />

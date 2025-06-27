@@ -1,0 +1,25 @@
+<svg width="100" height="100" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Walmart Spark Logo - Correct Design -->
+  <g transform="translate(50,50)">
+    <!-- Top spark -->
+    <rect x="-4" y="-35" width="8" height="20" rx="4" ry="4" fill="#FFC220"/>
+    
+    <!-- Top right spark -->
+    <rect x="-4" y="-35" width="8" height="20" rx="4" ry="4" fill="#FFC220" transform="rotate(60)"/>
+    
+    <!-- Bottom right spark -->
+    <rect x="-4" y="-35" width="8" height="20" rx="4" ry="4" fill="#FFC220" transform="rotate(120)"/>
+    
+    <!-- Bottom spark -->
+    <rect x="-4" y="-35" width="8" height="20" rx="4" ry="4" fill="#FFC220" transform="rotate(180)"/>
+    
+    <!-- Bottom left spark -->
+    <rect x="-4" y="-35" width="8" height="20" rx="4" ry="4" fill="#FFC220" transform="rotate(240)"/>
+    
+    <!-- Top left spark -->
+    <rect x="-4" y="-35" width="8" height="20" rx="4" ry="4" fill="#FFC220" transform="rotate(300)"/>
+    
+    <!-- Center circle -->
+    <circle cx="0" cy="0" r="6" fill="#FFC220"/>
+  </g>
+</svg>

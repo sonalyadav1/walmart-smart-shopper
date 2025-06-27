@@ -12,41 +12,45 @@ export default function Map() {
   return (
     <div className="walmart-bg">
       <header className="walmart-header-blue">
-        <div className="walmart-header-logo">
-          <img
-            src="/walmart-logo.png"
-            alt="Walmart Logo"
-            className="walmart-logo-img"
-          />
-          <span className="walmart-logo-text-white">Walmart</span>
-        </div>
-        
-        {/* Search bar with AI agent button */}
-        <div className="walmart-search-container">
-          <form className="walmart-searchbar" onSubmit={(e) => { e.preventDefault(); }}>
-            <input
-              className="walmart-searchbar-input"
-              type="text"
-              placeholder="What are you looking for?"
+        <div className="walmart-header-content">
+          <div className="walmart-header-logo">
+            <img
+              src="/walmart-spark.svg"
+              alt="Walmart Logo"
+              className="walmart-spark-img"
             />
-            <button className="walmart-search-btn" type="submit">
-              <svg className="walmart-search-icon" viewBox="0 0 24 24" fill="none">
-                <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </button>
-          </form>
-          <a href="/ai-agent" className="walmart-ai-button" title="AI Smart Shopper">
-            <span className="walmart-ai-icon">🤖</span>
-          </a>
-        </div>
+            <span className="walmart-logo-text-white">Walmart</span>
+          </div>
+          
+          {/* Search bar with AI agent button */}
+          <div className="walmart-search-container">
+            <form className="walmart-searchbar" onSubmit={(e) => { e.preventDefault(); }}>
+              <input
+                className="walmart-searchbar-input"
+                type="text"
+                placeholder="What are you looking for?"
+              />
+              <button className="walmart-search-btn" type="submit">
+                <svg className="walmart-search-icon" viewBox="0 0 24 24" fill="none">
+                  <path d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </form>
+            <a href="/ai-agent" className="walmart-ai-button" title="AI Smart Shopper">
+              <img src="/walmart-ai-energetic.svg" alt="AI Assistant" className="walmart-ai-icon-img" />
+            </a>
+          </div>
 
-        <nav className="walmart-nav">
-          <a href="/products" className="walmart-btn-white">Products</a>
-          <a href="/cart" className="walmart-btn-white">
-            <span className="walmart-cart-icon">🛒</span>
-            Cart
-          </a>
-        </nav>
+          <nav className="walmart-nav">
+            <a href="/products" className="walmart-btn-white">Products</a>
+            <a href="/cart" className="walmart-btn-white">
+              <svg className="walmart-cart-svg-icon" viewBox="0 0 24 24" fill="none">
+                <path d="M3 3h2l.4 2M7 13h10l4-8H5.4m1.6 8L5 3H3m4 10v6a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1v-6M9 19.5h.01M20 19.5h.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Cart
+            </a>
+          </nav>
+        </div>
       </header>
       <main className="walmart-map-main">
         <div className="walmart-map-grid">
@@ -83,7 +87,7 @@ export default function Map() {
               </ul>
             </div>
             <div className="walmart-card walmart-help-card">
-              <span className="walmart-help-title"><span>🤖</span> Need more items?</span>
+              <span className="walmart-help-title">Need more items?</span>
               <p className="walmart-help-text">Use our <a href="/ai-agent" className="walmart-link">AI Agent</a> to find additional products or get suggestions for missing items!</p>
               <div className="walmart-help-actions">
                 <a href="/ai-agent" className="walmart-btn-secondary">Add More Items</a>
