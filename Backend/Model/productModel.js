@@ -22,8 +22,8 @@ const productSchema = new mongoose.Schema(
       required: true,
     },
     hashtags: {
-      type: [String], // array of strings
-      default: [],
+      type: String, // array of strings
+      required: true,
     },
     imageUrl: {
   type: String,
