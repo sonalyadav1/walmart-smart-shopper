@@ -175,114 +175,299 @@ export const ccreateProduct = async (req, res) => {
   }
 };
 
+// Expanded unit conversion with normalization
+const UNIT_NORMALIZATION = {
+    // Weight
+    g: 'g', gram: 'g', grams: 'g',
+    kg: 'kg', kilo: 'kg', kilogram: 'kg',
+    mg: 'mg',
+    
+    // Volume
+    l: 'l', liter: 'l', litre: 'l', lt: 'l',
+    ml: 'ml', milliliter: 'ml',
+    
+    // Count
+    unit: 'unit', piece: 'unit', pc: 'unit', 
+    pack: 'pack', packet: 'pack', pkt: 'pack',
+    bunch: 'bunch', bn: 'bunch'
+};
 
-function parseQuantity(qtyStr) {
-  if (!qtyStr) return 0;
-  const [value, unit] = qtyStr.trim().toLowerCase().split(" ");
-  const val = parseFloat(value);
-  if (isNaN(val)) return 0;
-  if (unit?.startsWith("kg")) return val * 1000;
-  if (unit?.startsWith("g")) return val;
-  if (unit?.startsWith("l")) return val * 1000;
-  if (unit?.startsWith("ml")) return val;
-  if (unit?.includes("unit") || unit?.includes("pack")) return val;
-  return val;
-}
+const convertToBaseUnit = (qtyStr) => {
+    if (!qtyStr) return { value: 1, unit: 'unit' };
+    
+    const match = qtyStr.match(/(\d+(\.\d+)?)\s*(\w+)/);
+    if (!match) return { value: 1, unit: 'unit' };
 
-function mergeAIIngredients(aiList) {
-  const map = new Map();
-  for (const item of aiList) {
-    const key = item.name.toLowerCase();
-    if (map.has(key)) {
-      const existing = map.get(key);
-      existing.count++;
-      existing.quantity += parseQuantity(item.quantity);
-    } else {
-      map.set(key, {
-        name: key,
-        quantity: parseQuantity(item.quantity),
-        price: item.price || 60,
-        maxbudget: item.maxbudget || 5000,
-        count: 1,
-        purpose: item.dish || "General"
-      });
+    const value = parseFloat(match[1]);
+    const unit = match[3].toLowerCase().replace(/s$/, '');
+    const normalizedUnit = UNIT_NORMALIZATION[unit] || 'unit';
+
+    const conversionFactors = {
+        g: 1,
+        kg: 1000,
+        mg: 0.001,
+        l: 1000,
+        ml: 1,
+        unit: 1,
+        pack: 1,
+        bunch: 1
+    };
+
+    return {
+        value: value * (conversionFactors[normalizedUnit] || 1),
+        unit: normalizedUnit
+    };
+};
+
+// Calculate product relevance score
+const calculateRelevance = (item, product) => {
+    let score = 0;
+    
+    // Name similarity
+    const nameSimilarity = stringSimilarity.compareTwoStrings(
+        item.name.toLowerCase(),
+        product.name.toLowerCase()
+    );
+    score += nameSimilarity * 0.6;
+
+    // Hashtag match
+    const hashtags = product.hashtags.split(/\s+/).map(tag => 
+        tag.replace('#', '').toLowerCase()
+    );
+    
+    if (hashtags.includes(item.name.toLowerCase())) {
+        score += 0.3;
+    } else if (hashtags.some(tag => item.name.toLowerCase().includes(tag))) {
+        score += 0.2;
     }
-  }
-  return [...map.values()];
-}
 
-async function matchByHashtags(ingredientName, allProducts) {
-  const key = ingredientName.toLowerCase();
-  return allProducts.filter((p) => {
-    if (!p.hashtags || typeof p.hashtags !== "string") return false;
-    return p.hashtags.toLowerCase().includes(key);
-  });
-}
+    // Category match
+    if (product.category.toLowerCase() === item.category.toLowerCase()) {
+        score += 0.1;
+    }
 
-function prioritizeProductVariants(matches, targetQty, maxPrice) {
-  return matches
-    .map((item) => {
-      const q = parseQuantity(item.quantity);
-      const price = item.price;
-      return {
-        ...item.toObject(),
-        parsedQty: q,
-        deltaQty: Math.abs(targetQty - q),
-        deltaPrice: Math.abs(maxPrice - price),
-        valuePerRupee: q / price
-      };
-    })
-    .sort((a, b) => {
-      return (
-        a.deltaQty - b.deltaQty ||
-        a.deltaPrice - b.deltaPrice ||
-        b.valuePerRupee - a.valuePerRupee ||
-        a.price - b.price
-      );
+    return score;
+};
+
+
+
+// Calculate required product count
+const calculateRequiredCount = (aiQuantity, productQuantity) => {
+    const aiBase = convertToBaseUnit(aiQuantity);
+    const productBase = convertToBaseUnit(productQuantity);
+
+    // Handle compatible units (g/ml)
+    if ((aiBase.unit === 'g' || aiBase.unit === 'ml') && 
+        (productBase.unit === 'g' || productBase.unit === 'ml')) {
+        return Math.max(1, Math.ceil(aiBase.value / productBase.value));
+    }
+    return aiBase.unit === productBase.unit && productBase.value > 0 ?
+        Math.max(1, Math.ceil(aiBase.value / productBase.value)) : 1;
+};
+
+// Create product map from matrix
+const createProductMap = (matrix) => {
+    const productMap = new Map();
+    matrix.forEach(row => {
+        row.forEach(product => {
+            productMap.set(product._id.toString(), product);
+        });
     });
-}
+    return productMap;
+};
 
-function cleanProduct(product) {
-  const {
-    _id, name, price, quantity, category, description, hashtags,
-    imageUrl, parsedQty, deltaQty, deltaPrice, valuePerRupee, count
-  } = product;
 
-  return {
-    _id, name, price, quantity, category, description, hashtags,
-    imageUrl, parsedQty, deltaQty, deltaPrice, valuePerRupee, count
-  };
-}
 
-export const handleGrocerySuggestion = async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    if (!prompt || typeof prompt !== "string") {
-      return res.status(400).json({ error: "Prompt must be a valid string." });
+// Price optimization function
+export const optimizeProductSelection = (matrix, maxBudget) => {
+    const optimizedMatrix = [];
+    let totalCost = 0;
+
+    matrix.forEach(row => {
+        if (row.length === 0) return;
+        
+        // Sort by price per unit
+        const sortedRow = [...row].sort((a, b) => {
+            if (a.isPlaceholder || b.isPlaceholder) return 0;
+            
+            const aBase = convertToBaseUnit(a.quantity).value;
+            const bBase = convertToBaseUnit(b.quantity).value;
+            
+            return (a.price / aBase) - (b.price / bBase);
+        });
+
+        // Select most cost-effective option
+        const selected = sortedRow[0];
+        
+        if (!selected.isPlaceholder) {
+            totalCost += selected.totalPrice;
+            
+            // Check budget constraint
+            if (maxBudget && totalCost > maxBudget) {
+                selected.budgetExceeded = true;
+            }
+        }
+
+        optimizedMatrix.push([selected]);
+    });
+
+    return {
+        optimizedMatrix,
+        totalCost,
+        withinBudget: maxBudget ? totalCost <= maxBudget : true
+    };
+};
+
+
+
+// Enhanced product matching with category-aware search
+const findProductsByHashtag = async (itemName, itemCategory) => {
+    try {
+        const normalizedItemName = itemName.toLowerCase().trim();
+        const normalizedCategory = itemCategory.toLowerCase().trim();
+        const searchTerms = [
+            normalizedItemName,
+            ...normalizedItemName.split(/[\s-]+/).filter(term => term.length > 2)
+        ];
+
+        // Construct base query with category filter
+        const baseQuery = {
+            category: { $regex: new RegExp(normalizedCategory, 'i') }
+        };
+
+        // 1. First try: Exact name match within category
+        const exactMatch = await Product.find({
+            ...baseQuery,
+            name: { $regex: new RegExp(`^${normalizedItemName}$`, 'i') }
+        }).limit(5);
+
+        if (exactMatch.length > 0) {
+            console.log(`Exact name match found for "${itemName}" in category "${itemCategory}"`);
+            return exactMatch;
+        }
+
+        // 2. Second try: Hashtag match within category
+        const hashtagConditions = searchTerms.map(term => ({
+            hashtags: { $regex: `\\b${term}\\b`, $options: 'i' }
+        }));
+
+        const hashtagMatch = await Product.find({
+            ...baseQuery,
+            $or: hashtagConditions
+        }).limit(5);
+
+        if (hashtagMatch.length > 0) {
+            console.log(`Hashtag match found for "${itemName}" in category "${itemCategory}"`);
+            return hashtagMatch;
+        }
+
+        // 3. Third try: Name similarity within category
+        const allCategoryProducts = await Product.find(baseQuery);
+        const nameMatches = allCategoryProducts.filter(product => {
+            const similarity = stringSimilarity.compareTwoStrings(
+                normalizedItemName,
+                product.name.toLowerCase()
+            );
+            return similarity >= 0.4;
+        });
+
+        if (nameMatches.length > 0) {
+            console.log(`Similar name match found for "${itemName}" in category "${itemCategory}"`);
+            return nameMatches.slice(0, 5);
+        }
+
+        // 4. Fallback: Broad search without category constraint
+        console.log(`No matches found for "${itemName}" in category "${itemCategory}". Trying broader search...`);
+        return await Product.find({
+            $or: [
+                { name: { $regex: normalizedItemName, $options: 'i' } },
+                ...hashtagConditions
+            ]
+        }).limit(5);
+        
+    } catch (error) {
+        console.error(`Search failed for "${itemName}":`, error);
+        return [];
     }
+};
 
-    const aiResponse = await getMistralResponse(prompt);
-    if (!Array.isArray(aiResponse)) {
-      return res.status(500).json({ error: "Invalid AI response", raw: aiResponse });
+// Update matrix function to use enhanced search
+export const updateProductMatrix = async (matrix, prompt) => {
+    try {
+        const items = await getMistralResponse(prompt);
+        if (!Array.isArray(items)) throw new Error("Invalid AI response");
+
+        const productRegistry = new Map();
+        matrix.forEach(row => {
+            row.forEach(product => {
+                productRegistry.set(product._id.toString(), product);
+            });
+        });
+
+        // Process items with category-aware search
+        for (const item of items) {
+            const products = await findProductsByHashtag(item.name, item.category);
+            const row = [];
+            
+            for (const product of products) {
+                const productId = product._id.toString();
+                const requiredCount = calculateRequiredCount(item.quantity, product.quantity);
+                
+                if (productRegistry.has(productId)) {
+                    // Update existing product
+                    const existing = productRegistry.get(productId);
+                    existing.requiredCount += requiredCount;
+                    
+                    if (!existing.ingredientSources) {
+                        existing.ingredientSources = [{
+                            name: item.name,
+                            quantity: item.quantity
+                        }];
+                    } else {
+                        existing.ingredientSources.push({
+                            name: item.name,
+                            quantity: item.quantity
+                        });
+                    }
+                } else {
+                    // Create new product entry
+                    const newProduct = {
+                        ...product.toObject(),
+                        requiredCount,
+                        ingredientSources: [{
+                            name: item.name,
+                            quantity: item.quantity
+                        }],
+                        basePrice: product.price,
+                        totalPrice: product.price * requiredCount
+                    };
+                    row.push(newProduct);
+                    productRegistry.set(productId, newProduct);
+                }
+            }
+            
+            if (row.length > 0) {
+                matrix.push(row);
+            } else {
+                // Add placeholder with category info
+                matrix.push([{
+                    _id: `unmatched-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                    name: item.name,
+                    quantity: item.quantity,
+                    category: item.category,
+                    isPlaceholder: true,
+                    requiredCount: 1,
+                    ingredientSources: [{
+                        name: item.name,
+                        quantity: item.quantity
+                    }]
+                }]);
+            }
+        }
+        
+        return matrix;
+    } catch (error) {
+        console.error("Matrix update error:", error);
+        throw error;
     }
-
-    const mergedIngredients = mergeAIIngredients(aiResponse);
-    const allProducts = await Product.find({});
-    const matrix = [];
-
-    for (const ing of mergedIngredients) {
-      const matches = await matchByHashtags(ing.name, allProducts);
-      const prioritized = prioritizeProductVariants(matches, ing.quantity, ing.price);
-      if (prioritized.length) {
-        prioritized[0].count = ing.count;
-      }
-      matrix.push(prioritized); // even if empty
-    }
-
-    const cleanedMatrix = matrix.map(group => group.map(cleanProduct));
-    return res.status(200).json({ matrix: cleanedMatrix });
-  } catch (err) {
-    console.error("❌ handleGrocerySuggestion error:", err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
 };
