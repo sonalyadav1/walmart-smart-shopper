@@ -1,13 +1,13 @@
 import upload from "../Controllers/multer.js";
 // routes/productRoutes.js
 import express from "express";
-import { createProduct, getMistralResponse } from "../Controllers/productController.js";
+import { ccreateProduct,  getMistralResponse, handleGrocerySuggestion } from "../Controllers/productController.js";
 
 const router = express.Router();
 
 // @route   POST /products
 // @desc    Create a new product with image upload
-router.post("/products", upload.single("file"), createProduct);
+//router.post("/products", upload.single("file"), createProduct);
 
 router.post("/generate-products", async (req, res) => {
   const { prompt } = req.body;
@@ -24,5 +24,11 @@ router.post("/generate-products", async (req, res) => {
   }
 });
 
+
+
+// POST /api/grocery/suggest
+router.post("/suggest", handleGrocerySuggestion);
+
+router.post("/bulk", ccreateProduct)
 
 export default router;
