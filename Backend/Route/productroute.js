@@ -1,7 +1,7 @@
 import upload from "../Controllers/multer.js";
 // routes/productRoutes.js
 import express from "express";
-import { ccreateProduct,  getMistralResponse, optimizeProductSelection, updateProductMatrix } from "../Controllers/productController.js";
+import { ccreateProduct,  getMistralResponse, handleGrocerySuggestion } from "../Controllers/productController.js";
 
 const router = express.Router();
 
@@ -24,37 +24,10 @@ router.post("/generate-products", async (req, res) => {
   }
 });
 
-// Updated POST endpoint
-router.post('/matrix', async (req, res) => {
-    try {
-        const { prompt, matrix = [], maxBudget } = req.body;
-        if (!prompt) return res.status(400).json({ error: "Prompt is required" });
 
-        const updatedMatrix = await updateProductMatrix(matrix, prompt);
-        const { optimizedMatrix, totalCost, withinBudget } = 
-            optimizeProductSelection(updatedMatrix, maxBudget);
-        
-        res.json({
-            success: true,
-            matrix: optimizedMatrix,
-            summary: {
-                totalItems: optimizedMatrix.flat().length,
-                totalProducts: optimizedMatrix.flat().filter(p => !p.isPlaceholder).length,
-                totalCost,
-                withinBudget
-            }
-        });
-    } catch (error) {
-        res.status(500).json({
-            error: "Failed to process request",
-            details: error.message,
-            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-        });
-    }
-});
 
 // POST /api/grocery/suggest
-//router.post("/suggest", handleGrocerySuggestion);
+router.post("/suggest", handleGrocerySuggestion);
 
 router.post("/bulk", ccreateProduct)
 

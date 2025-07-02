@@ -10,39 +10,35 @@ export default function AIAgent() {
   const [error, setError] = useState("");
   const router = useRouter();
 
-  function extractJsonArray(text) {
-    // Try to extract the first JSON array from the text
-    const match = text.match(/\[.*\]/s);
-    if (match) {
-      try {
-        return JSON.parse(match[0]);
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  }
-
   async function handleSubmit(e) {
     e.preventDefault();
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/api/gemini-cli", {
+      console.log("Making request to backend...");
+      const res = await fetch("http://localhost:3000/api/suggest", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt: STRUCTURED_PROMPT_PREFIX + input })
       });
-      if (!res.ok) throw new Error("AI request failed");
+      console.log("Response status:", res.status);
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error("Response error:", errorText);
+        throw new Error(`AI request failed: ${res.status} ${errorText}`);
+      }
+      
       const data = await res.json();
-      let products = extractJsonArray(data.result);
+      console.log("Response data:", data);
+      let products = data.products;
       if (!products) {
-        // fallback: treat as plain text array
-        products = [{ name: data.result }];
+        products = [];
       }
       sessionStorage.setItem("aiProducts", JSON.stringify(products));
       router.push("/products");
     } catch (err) {
+      console.error("Full error:", err);
       setError("Sorry, something went wrong. Try again.");
     } finally {
       setLoading(false);

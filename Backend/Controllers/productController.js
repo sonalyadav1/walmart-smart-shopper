@@ -9,7 +9,7 @@ dotenv.config();
 
 
 const openai = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
+  apiKey: process.env.GROQ_API_KEY || "", // Explicitly use GROQ_API_KEY or fallback to an empty string
   baseURL: "https://api.groq.com/openai/v1", // Using Together.ai endpoint
 });
 
@@ -82,13 +82,20 @@ Return strictly only the JSON array.
       },
     ],
     temperature: 0.2,
-    max_tokens: 600,
+    max_tokens: 1500,  // Increased from 600 to allow longer responses
   });
 
   let content = response.choices[0].message.content.trim();
   
+  // Clean up common AI response artifacts
+  content = content.replace(/<\|[^>]*\|>/g, ''); // Remove <|header_start|>, <|header_end|>, etc.
+  content = content.replace(/assistant/g, ''); // Remove stray "assistant" text
+  content = content.replace(/\bassistant\b/g, ''); // Remove standalone "assistant" words
+  content = content.replace(/```json/g, ''); // Remove markdown code blocks
+  content = content.replace(/```/g, ''); // Remove markdown code blocks
+  content = content.replace(/\n\s*\n/g, '\n'); // Remove extra empty lines
 
-  console.log("AI Response:", content);
+  console.log("AI Response (cleaned):", content);
   
   try {
     return JSON.parse(content);
@@ -97,23 +104,72 @@ Return strictly only the JSON array.
 
     // Try to isolate and truncate to the last valid object in array
     const start = content.indexOf("[");
-    const end = content.lastIndexOf("}");
+    let end = content.lastIndexOf("}");
+    
+    // If we can't find a closing brace, try to find the last complete object
+    if (end === -1) {
+      end = content.lastIndexOf(","); // Find last comma and truncate there
+      if (end === -1) {
+        end = content.length;
+      }
+    }
 
-    if (start === -1 || end === -1) {
+    if (start === -1) {
       console.error("❌ No valid JSON structure found.");
       return { error: "No valid JSON detected", raw: content };
     }
 
-    const partial = content.slice(start, end + 1);
-    const fixedJson = partial + "]";
+    let partial = content.slice(start, end + 1);
+    
+    // Additional cleaning for the partial JSON
+    partial = partial.replace(/<\|[^>]*\|>/g, ''); // Remove AI artifacts
+    partial = partial.replace(/assistant/g, ''); // Remove stray "assistant" text
+    partial = partial.replace(/,\s*}/g, '}'); // Fix trailing commas in objects
+    partial = partial.replace(/,\s*]/g, ']'); // Fix trailing commas in arrays
+    
+    // Ensure proper closing of arrays and objects
+    if (!partial.endsWith(']')) {
+      // Count open brackets/braces to properly close them
+      const openBrackets = (partial.match(/\[/g) || []).length;
+      const closeBrackets = (partial.match(/\]/g) || []).length;
+      const openBraces = (partial.match(/\{/g) || []).length;
+      const closeBraces = (partial.match(/\}/g) || []).length;
+      
+      // Add missing closing braces
+      for (let i = 0; i < openBraces - closeBraces; i++) {
+        partial += '}';
+      }
+      
+      // Add missing closing brackets
+      for (let i = 0; i < openBrackets - closeBrackets; i++) {
+        partial += ']';
+      }
+    }
 
     try {
-      const parsed = JSON.parse(fixedJson);
+      const parsed = JSON.parse(partial);
       console.log("✅ Successfully recovered partial JSON.");
       return parsed;
     } catch (err2) {
-      console.error("❌ JSON still broken after fixing:\n", fixedJson);
-      return { error: "Still invalid after fixing", raw: fixedJson };
+      console.error("❌ JSON still broken after fixing:\n", partial);
+      
+      // Try one more time with more aggressive cleaning
+      let ultraClean = partial
+        .replace(/[^[\]{},"':0-9a-zA-Z\s.-]/g, '') // Keep only valid JSON characters
+        .replace(/,(\s*[}\]])/g, '$1'); // Remove trailing commas
+      
+      // Ensure it ends properly
+      if (!ultraClean.endsWith(']')) {
+        ultraClean += ']';
+      }
+      
+      try {
+        const ultraParsed = JSON.parse(ultraClean);
+        console.log("✅ Successfully recovered with ultra cleaning.");
+        return ultraParsed;
+      } catch (err3) {
+        return { error: "Still invalid after fixing", raw: partial };
+      }
     }
   }
 };
@@ -245,8 +301,129 @@ const calculateRelevance = (item, product) => {
     if (product.category.toLowerCase() === item.category.toLowerCase()) {
         score += 0.1;
     }
-
     return score;
+};
+
+function parseQuantity(qtyStr) {
+  if (!qtyStr) return 0;
+  const match = qtyStr.match(/(\d+(\.\d+)?)\s*(\w+)/);
+  if (!match) return 0;
+  const value = parseFloat(match[1]);
+  const unit = match[3].toLowerCase().replace(/s$/, '');
+  const normalizedUnit = UNIT_NORMALIZATION[unit] || 'unit';
+  const conversionFactors = {
+    g: 1,
+    kg: 1000,
+    mg: 0.001,
+    l: 1000,
+    ml: 1,
+    unit: 1,
+    pack: 1,
+    bunch: 1
+  };
+  return value * (conversionFactors[normalizedUnit] || 1);
+}
+
+function mergeAIIngredients(aiList) {
+  const map = new Map();
+  for (const item of aiList) {
+    const key = item.name.toLowerCase();
+    if (map.has(key)) {
+      const existing = map.get(key);
+      existing.count++;
+      existing.quantity += parseQuantity(item.quantity);
+    } else {
+      map.set(key, {
+        name: key,
+        quantity: parseQuantity(item.quantity),
+        price: item.price || 60,
+        maxbudget: item.maxbudget || 5000,
+        count: 1,
+        purpose: item.dish || "General"
+      });
+    }
+  }
+  return [...map.values()];
+}
+
+// Synonym map for common ingredients
+const INGREDIENT_SYNONYMS = {
+  "all-purpose flour": ["maida", "flour", "refined flour"],
+  "penne pasta": ["pasta", "penne"],
+  "parmesan cheese": ["cheese", "parmesan"],
+  // Add more as needed
+};
+
+async function matchByHashtags(ingredientName, allProducts) {
+  const key = ingredientName.toLowerCase();
+  let matches = allProducts.filter((p) => {
+    if (!p.hashtags || typeof p.hashtags !== "string") return false;
+    return p.hashtags.toLowerCase().includes(key);
+  });
+  // Try synonyms if no matches
+  if (matches.length === 0 && INGREDIENT_SYNONYMS[key]) {
+    for (const synonym of INGREDIENT_SYNONYMS[key]) {
+      matches = allProducts.filter((p) => {
+        return (
+          (p.hashtags && p.hashtags.toLowerCase().includes(synonym)) ||
+          (p.name && p.name.toLowerCase().includes(synonym))
+        );
+      });
+      if (matches.length > 0) break;
+    }
+  }
+  // Try splitting ingredient into words and match any
+  if (matches.length === 0) {
+    const words = key.split(/\s+/);
+    matches = allProducts.filter((p) => {
+      const hay = (p.hashtags + " " + p.name).toLowerCase();
+      return words.some(word => hay.includes(word));
+    });
+  }
+  // Fuzzy match fallback
+  if (matches.length === 0) {
+    const names = allProducts.map(p => p.name.toLowerCase());
+    const best = stringSimilarity.findBestMatch(key, names);
+    if (best.bestMatch.rating > 0.4) {
+      matches = allProducts.filter(p => p.name.toLowerCase() === best.bestMatch.target);
+    }
+  }
+  return matches;
+}
+
+function prioritizeProductVariants(matches, targetQty, maxPrice) {
+  return matches
+    .map((item) => {
+      const q = parseQuantity(item.quantity);
+      const price = item.price;
+      return {
+        ...item.toObject(),
+        parsedQty: q,
+        deltaQty: Math.abs(targetQty - q),
+        deltaPrice: Math.abs(maxPrice - price),
+        valuePerRupee: q / price
+      };
+    })
+    .sort((a, b) => {
+      return (
+        a.deltaQty - b.deltaQty ||
+        a.deltaPrice - b.deltaPrice ||
+        b.valuePerRupee - a.valuePerRupee ||
+        a.price - b.price
+      );
+    });
+}
+
+function cleanProduct(product) {
+  const {
+    _id, name, price, quantity, category, description, hashtags,
+    imageUrl, parsedQty, deltaQty, deltaPrice, valuePerRupee, count
+  } = product;
+
+  return {
+    _id, name, price, quantity, category, description, hashtags,
+    imageUrl, parsedQty, deltaQty, deltaPrice, valuePerRupee, count
+  };
 };
 
 
@@ -311,6 +488,58 @@ export const optimizeProductSelection = (matrix, maxBudget) => {
         optimizedMatrix.push([selected]);
     });
 
+  return {
+    _id, name, price, quantity, category, description, hashtags,
+    imageUrl, parsedQty, deltaQty, deltaPrice, valuePerRupee, count
+  };
+}
+
+export const handleGrocerySuggestion = async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt || typeof prompt !== "string") {
+      return res.status(400).json({ error: "Prompt must be a valid string." });
+    }
+
+    console.log("Received prompt:", prompt);
+    console.log("Request body:", req.body); // Debugging request body
+
+    const aiResponse = await getMistralResponse(prompt);
+    console.log("AI Response:", aiResponse);
+
+    if (!Array.isArray(aiResponse)) {
+      return res.status(500).json({ error: "Invalid AI response", raw: aiResponse });
+    }
+
+    const mergedIngredients = mergeAIIngredients(aiResponse);
+    console.log("Merged Ingredients:", mergedIngredients);
+
+    const allProducts = await Product.find({});
+    console.log("All Products from DB:", allProducts);
+
+    const matrix = [];
+
+    for (const ing of mergedIngredients) {
+      console.log("Processing ingredient:", ing.name);
+      const matches = await matchByHashtags(ing.name, allProducts);
+      console.log(`Matches for '${ing.name}':`, matches.map(m => m.name));
+
+      const prioritized = prioritizeProductVariants(matches, ing.quantity, ing.price);
+      console.log("Prioritized matches:", prioritized);
+
+      if (prioritized.length) {
+        prioritized[0].count = ing.count;
+      }
+      matrix.push(prioritized); // even if empty
+    }
+
+    const cleanedMatrix = matrix.map(group => group.map(cleanProduct));
+    const flatProducts = cleanedMatrix.flat();
+    return res.status(200).json({ products: flatProducts });
+  } catch (err) {
+    console.error("❌ handleGrocerySuggestion error:", err);
+    return res.status(500).json({ error: "Internal server error" });
+  }
     return {
         optimizedMatrix,
         totalCost,
