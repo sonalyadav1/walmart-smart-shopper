@@ -1,119 +1,218 @@
 # Walmart AI Smart Shopper
 
-A modern Next.js web prototype for Walmart AI Smart Shopper. This app lets users input shopping needs, get AI-generated product lists (with brand alternatives), add items to a cart, and choose between online or in-store shopping. For in-store, it shows an optimized route on a store map. The AI backend uses Gemini CLI (or can be adapted for OpenAI/Hugging Face).
+A modern full-stack web application for Walmart AI Smart Shopper. This app features a Next.js frontend and Express.js backend with MongoDB, allowing users to input shopping needs in natural language and get AI-generated product suggestions from a real product database. Users can add items to cart and manage their shopping experience.
 
 ## Features
-- **Next.js** frontend with React and Tailwind CSS
-- Custom Walmart-style UI (header, buttons, product cards, etc.)
-- AI-powered product suggestions (Gemini CLI backend)
-- Brand alternatives and cart management
-- Choose between "Buy Online" and "Shop In-Store"
-- In-store mode: optimized route on a store map
-- Session/local storage for cart and product state
+- **Next.js** frontend with React and custom Walmart-style UI
+- **Express.js** backend with MongoDB database
+- **AI-powered product suggestions** using Groq API (Llama model)
+- **Real product matching** from database with intelligent search
+- **Smart ingredient parsing** for cooking recipes and meal planning
+- **Product alternatives** and brand suggestions
+- **Cart management** with session storage
+- **Responsive design** with custom Walmart styling
 
-## Folder Structure
+## Tech Stack
+- **Frontend**: Next.js, React, CSS
+- **Backend**: Express.js, Node.js
+- **Database**: MongoDB with Mongoose
+- **AI**: Groq API (Meta LLaMA model)
+- **Image Upload**: Cloudinary integration
+- **File Upload**: Multer middleware
+
+## Project Structure
 ```
-/pages
-  index.js         # Home page
-  ai-agent.js      # AI input page
-  products.js      # Product suggestions
-  cart.js          # Cart summary and mode selection
-  map.js           # Store map and route
-  /api/gemini-cli.js # API route for Gemini CLI
-/components
-  ProductCard.js   # Product card UI
-  CartSummary.js   # Cart summary UI
-  MapOverlay.js    # Map overlay UI
-/styles
-  globals.css      # Tailwind + custom Walmart CSS
-/public            # Static assets (store map, logo, etc.)
+/pages                 # Next.js frontend pages
+  index.js            # Home page
+  ai-agent.js         # AI input page
+  products.js         # Product suggestions display
+  cart.js             # Shopping cart
+  map.js              # Store map (if applicable)
+  /api
+    gemini-cli.js     # API route (legacy)
+
+/Backend              # Express.js backend
+  index.js            # Main server file
+  connectDB.js        # MongoDB connection
+  /Controllers
+    productController.js # AI and product logic
+    multer.js           # File upload middleware
+    cloudinary.js       # Image upload configuration
+  /Model
+    productModel.js     # MongoDB product schema
+  /Route
+    productroute.js     # API routes
+
+/components           # React components
+  ProductCard.js      # Product display cards
+  CartSummary.js      # Cart summary component
+  MapOverlay.js       # Map interface
+
+/styles               # CSS styling
+  globals.css         # Global styles with Walmart theme
+
+/public              # Static assets
+  *.svg              # Logo and icon files
+  store-map.png      # Store layout image
 ```
 
 ## Getting Started
 
-### 1. Clone the repo
+### Prerequisites
+- **Node.js** v18+ 
+- **MongoDB** (local or MongoDB Atlas)
+- **Groq API Key** (for AI functionality)
+
+### 1. Clone the repository
 ```sh
 git clone https://github.com/sonalyadav1/walmart-smart-shopper.git
 cd walmart-smart-shopper
 ```
 
-### 2. Install dependencies
+### 2. Install Frontend Dependencies
 ```sh
 npm install
 ```
 
-### 3. Set up Gemini CLI (AI backend)
-- **Node.js requirement:**  
-  Gemini CLI requires Node.js **v18+** (some features require v20+).  
-  Check your version:
-  ```sh
-  node -v
-  ```
-  If you need to upgrade, use [nvm](https://github.com/nvm-sh/nvm):
-  ```sh
-  nvm install 20
-  nvm use 20
-  ```
+### 3. Install Backend Dependencies
+```sh
+cd Backend
+npm install
+cd ..
+```
 
-- **Install Gemini CLI (choose one method):**
-  - **Via npm (recommended for Node.js users):**
-    ```sh
-    npm install -g @google/gemini-cli
-    ```
-  - **Via npx (one-time run):**
-    ```sh
-    npx https://github.com/google-gemini/gemini-cli
-    ```
-  - **Via pip (Python, alternative):**
-    ```sh
-    pip install -U google-generativeai[cli]
-    ```
+### 4. Set up Environment Variables
+Create a `.env` file in the `Backend` directory:
+```env
+# MongoDB Connection
+MONGODB_URI=mongodb://localhost:27017/walmart-smart-shopper
+# OR for MongoDB Atlas:
+# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/walmart-smart-shopper
 
-- **Authenticate Gemini CLI:**
-  ```sh
-  gemini login
-  ```
-  Follow the prompts to authenticate with your Google account and set up your API key.
+# Groq API Key (for AI functionality)
+GROQ_API_KEY=your_groq_api_key_here
 
-- **Verify installation:**
-  ```sh
-  gemini --help
-  ```
-  You should see the Gemini CLI help output.
+# Cloudinary (for image uploads - optional)
+CLOUDINARY_CLOUD_NAME=your_cloudinary_name
+CLOUDINARY_API_KEY=your_cloudinary_key
+CLOUDINARY_API_SECRET=your_cloudinary_secret
 
-- **Example command to test Gemini CLI:**
-  ```sh
-  echo "Suggest a JSON array of Walmart products for cleaning my room and bathroom. Each product should have name, brand, price, and aisle. Only return the JSON array." | gemini
-  ```
+# Server Port (optional, defaults to 3000)
+PORT=3000
+```
 
-#### Troubleshooting
-- If you see errors like `Unsupported engine ... required: { node: '>=18' } ... current: { node: 'v16.x.x' }`, upgrade Node.js and reinstall Gemini CLI.
-- If `gemini` is not found after switching Node versions, reinstall Gemini CLI globally with `npm install -g @google/gemini-cli`.
-- For more help, see the [official Gemini CLI docs](https://ai.google.dev/gemini-api/docs/cli).
+### 5. Set up Database
+- Install MongoDB locally or create a MongoDB Atlas account
+- The application will automatically create the required collections
+- Optional: Add sample products to the database using the bulk create endpoint
 
-- The backend API route `/api/gemini-cli.js` will call Gemini CLI using Node.js
+### 6. Run the Application
 
-### 4. Run the app
+**Terminal 1 - Backend Server:**
+```sh
+cd Backend
+npm run dev
+```
+The backend will run on `http://localhost:3000`
+
+**Terminal 2 - Frontend Server:**
 ```sh
 npm run dev
 ```
-Visit [http://localhost:3000](http://localhost:3000)
+The frontend will run on `http://localhost:3001` (or next available port)
+## API Endpoints
+
+### Backend Routes (`http://localhost:3000/api/`)
+
+- **POST** `/suggest` - Get AI product suggestions
+  ```json
+  {
+    "prompt": "ingredients for white sauce pasta"
+  }
+  ```
+
+- **POST** `/bulk` - Create multiple products (admin)
+- **POST** `/generate-products` - Generate products via AI
+- **POST** `/upload-test` - Test file upload functionality
 
 ## Usage
-- Go to the home page and try the AI Agent
-- Enter a short shopping need (e.g., "ingredients for white sauce pasta")
-- The AI will return a JSON array of Walmart products (name, brand, price, aisle)
-- Add products to your cart, swap brands, and choose shopping mode
-- In-store mode shows a map and optimized route
 
-## Customization
-- UI is styled with Tailwind CSS and custom classes in `/styles/globals.css`
-- You can adapt the AI backend to use OpenAI or Hugging Face by editing `/api/gemini-cli.js`
+### 1. Access the Application
+- Open your browser and go to `http://localhost:3001`
+- Click on "AI Smart Shopper" or navigate to the AI agent page
 
-## Notes
-- No API keys are stored in the repo; Gemini CLI must be set up locally
-- For best results, use Node.js 18+ and a modern browser
-- Unused files/assets have been removed for a clean codebase
+### 2. Get Product Suggestions
+- Enter your shopping need in natural language:
+  - "ingredients for white sauce pasta"
+  - "cleaning supplies for kitchen"
+  - "healthy breakfast options for 2 people"
+  - "baking ingredients for chocolate cake"
+
+### 3. How It Works
+1. **AI Processing**: Your request is sent to the Groq API (LLaMA model)
+2. **Product Matching**: AI response is matched against the product database
+3. **Smart Suggestions**: Products are prioritized by relevance, price, and availability
+4. **Results Display**: Matching products are displayed with details and alternatives
+
+## Key Features
+
+### AI-Powered Search
+- Natural language processing for shopping requests
+- Intelligent ingredient parsing for recipes
+- Context-aware product suggestions
+- Handles quantities, dietary preferences, and occasions
+
+### Smart Product Matching
+- Fuzzy string matching for product names
+- Hashtag-based categorization
+- Synonym recognition for common ingredients
+- Price and quantity optimization
+
+### Database Integration
+- MongoDB with Mongoose ODM
+- Product model with categories, prices, and metadata
+- Efficient querying and indexing
+- Scalable data structure
+
+## Development
+
+### Adding Sample Products
+You can add products to the database using the bulk create endpoint:
+
+```sh
+curl -X POST http://localhost:3000/api/bulk \
+  -H "Content-Type: application/json" \
+  -d '[
+    {
+      "name": "Organic Pasta",
+      "category": "Grocery",
+      "price": 2.99,
+      "description": "Organic whole wheat pasta",
+      "hashtags": "pasta, organic, whole wheat, italian",
+      "imageUrl": "/images/pasta.jpg",
+      "quantity": "500g"
+    }
+  ]'
+```
+
+### Environment Configuration
+- The app uses environment variables for sensitive data
+- AI functionality requires a valid Groq API key
+- Database connection can be local MongoDB or MongoDB Atlas
+
+## Troubleshooting
+
+### Common Issues
+1. **Backend not starting**: Check MongoDB connection and environment variables
+2. **AI not working**: Verify Groq API key in `.env` file
+3. **Frontend API errors**: Ensure backend is running on port 3000
+4. **Port conflicts**: Frontend will auto-assign next available port
+
+### Development Tips
+- Use browser dev tools to monitor network requests
+- Check backend console for detailed AI processing logs
+- MongoDB Compass can help visualize database content
+- Test individual API endpoints with curl or Postman
 
 ## License
 MIT
