@@ -16,10 +16,10 @@ export default function AIAgent() {
     setError("");
     try {
       console.log("Making request to backend...");
-      const res = await fetch("http://localhost:3000/api/suggest", {
+      const res = await fetch("http://localhost:3000/api/generate-products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ prompt: STRUCTURED_PROMPT_PREFIX + input })
+        body: JSON.stringify({ prompt: input })
       });
       console.log("Response status:", res.status);
       
