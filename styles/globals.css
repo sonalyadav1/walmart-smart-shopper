@@ -2037,3 +2037,165 @@ body {
   font-size: 0.85rem;
   padding: 0.5rem 1rem;
 }
+
+
+
+.walmart-summary-results {
+  padding: 30px;
+  background: #f9f9f9;
+  border-bottom: 2px solid #eee;
+}
+
+.walmart-summary-budget {
+  font-size: 1.4rem;
+  font-weight: bold;
+  margin-bottom: 20px;
+  color: #1a1a1a;
+}
+
+.walmart-product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+}
+
+.walmart-product-card {
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  padding: 18px;
+  border-radius: 10px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease;
+}
+
+.walmart-product-card:hover {
+  transform: scale(1.02);
+}
+
+.walmart-product-card h3 {
+  font-size: 1.2rem;
+  color: #005cbf;
+  margin-bottom: 10px;
+}
+
+.walmart-product-card p {
+  margin: 5px 0;
+  font-size: 0.95rem;
+  color: #333;
+}
+
+
+
+
+
+
+
+
+
+
+.cart-section {
+  margin-top: 2rem;
+  padding: 2rem;
+  background: #fefefe;
+  border-radius: 16px;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.05);
+}
+
+.cart-title {
+  font-size: 2rem;
+  color: #212121;
+  margin-bottom: 1.5rem;
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 2px solid #0071dc;
+  padding-bottom: 0.5rem;
+}
+
+.cart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.cart-product-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 1.2rem;
+  box-shadow: 0 6px 20px rgba(0, 113, 220, 0.1);
+  transition: transform 0.2s ease;
+  position: relative;
+}
+
+.cart-product-card:hover {
+  transform: translateY(-6px);
+}
+
+.cart-product-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cart-product-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #0071dc;
+}
+
+.cart-delete-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  color: #e53935;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+
+.cart-delete-btn:hover {
+  transform: scale(1.2);
+}
+
+.cart-meta {
+  font-size: 0.95rem;
+  margin: 0.3rem 0;
+  color: #555;
+}
+
+.cart-subtotal {
+  margin-top: 0.6rem;
+  font-weight: 600;
+  color: #0a7f2f;
+}
+
+.cart-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 2px dashed #ccc;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.cart-total {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #1b5e20;
+}
+
+.cart-add-btn {
+  background-color: #0071dc;
+  color: #fff;
+  padding: 0.75rem 1.6rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.cart-add-btn:hover {
+  background-color: #005bb5;
+}

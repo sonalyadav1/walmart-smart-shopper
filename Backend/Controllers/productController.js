@@ -9,7 +9,7 @@ dotenv.config();
 
 
 const openai = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY || "", // Explicitly use GROQ_API_KEY or fallback to an empty string
+  apiKey: process.env.GROQ_API_KEY,
   baseURL: "https://api.groq.com/openai/v1", // Using Together.ai endpoint
 });
 
@@ -82,100 +82,53 @@ Return strictly only the JSON array.
       },
     ],
     temperature: 0.2,
-    max_tokens: 1500,  // Increased from 600 to allow longer responses
+    max_tokens: 600,
   });
 
+  
   let content = response.choices[0].message.content.trim();
-  
-  // Clean up common AI response artifacts
-  content = content.replace(/<\|[^>]*\|>/g, ''); // Remove <|header_start|>, <|header_end|>, etc.
-  content = content.replace(/assistant/g, ''); // Remove stray "assistant" text
-  content = content.replace(/\bassistant\b/g, ''); // Remove standalone "assistant" words
-  content = content.replace(/```json/g, ''); // Remove markdown code blocks
-  content = content.replace(/```/g, ''); // Remove markdown code blocks
-  content = content.replace(/\n\s*\n/g, '\n'); // Remove extra empty lines
 
-  console.log("AI Response (cleaned):", content);
-  
+  // Remove any non-ASCII characters that might break JSON
+  content = content.replace(/[^\x20-\x7E]+/g, "");
+
+  console.log("AI Response:", content);
+
   try {
-    return JSON.parse(content);
+    const parsed = JSON.parse(content);
+    if (Array.isArray(parsed)) return parsed;
+
+    return { error: "Parsed but not an array", raw: content };
   } catch (err) {
     console.warn("⚠️ Initial JSON parse failed. Attempting recovery...");
 
-    // Try to isolate and truncate to the last valid object in array
+    // Try to isolate a valid-looking array
     const start = content.indexOf("[");
-    let end = content.lastIndexOf("}");
-    
-    // If we can't find a closing brace, try to find the last complete object
-    if (end === -1) {
-      end = content.lastIndexOf(","); // Find last comma and truncate there
-      if (end === -1) {
-        end = content.length;
-      }
-    }
+    const end = content.lastIndexOf("}");
 
-    if (start === -1) {
-      console.error("❌ No valid JSON structure found.");
-      return { error: "No valid JSON detected", raw: content };
+    if (start === -1 || end === -1) {
+      console.error("❌ No valid JSON array found.");
+      return { error: "No JSON array detected", raw: content };
     }
 
     let partial = content.slice(start, end + 1);
-    
-    // Additional cleaning for the partial JSON
-    partial = partial.replace(/<\|[^>]*\|>/g, ''); // Remove AI artifacts
-    partial = partial.replace(/assistant/g, ''); // Remove stray "assistant" text
-    partial = partial.replace(/,\s*}/g, '}'); // Fix trailing commas in objects
-    partial = partial.replace(/,\s*]/g, ']'); // Fix trailing commas in arrays
-    
-    // Ensure proper closing of arrays and objects
-    if (!partial.endsWith(']')) {
-      // Count open brackets/braces to properly close them
-      const openBrackets = (partial.match(/\[/g) || []).length;
-      const closeBrackets = (partial.match(/\]/g) || []).length;
-      const openBraces = (partial.match(/\{/g) || []).length;
-      const closeBraces = (partial.match(/\}/g) || []).length;
-      
-      // Add missing closing braces
-      for (let i = 0; i < openBraces - closeBraces; i++) {
-        partial += '}';
-      }
-      
-      // Add missing closing brackets
-      for (let i = 0; i < openBrackets - closeBrackets; i++) {
-        partial += ']';
-      }
-    }
+
+    // Ensure array ends with a closing bracket
+    if (!partial.endsWith("]")) partial += "]";
 
     try {
-      const parsed = JSON.parse(partial);
-      console.log("✅ Successfully recovered partial JSON.");
-      return parsed;
+      const fixed = JSON.parse(partial);
+      if (Array.isArray(fixed)) {
+        console.log("✅ Successfully recovered partial JSON.");
+        return fixed;
+      } else {
+        return { error: "Recovered but not an array", raw: partial };
+      }
     } catch (err2) {
       console.error("❌ JSON still broken after fixing:\n", partial);
-      
-      // Try one more time with more aggressive cleaning
-      let ultraClean = partial
-        .replace(/[^[\]{},"':0-9a-zA-Z\s.-]/g, '') // Keep only valid JSON characters
-        .replace(/,(\s*[}\]])/g, '$1'); // Remove trailing commas
-      
-      // Ensure it ends properly
-      if (!ultraClean.endsWith(']')) {
-        ultraClean += ']';
-      }
-      
-      try {
-        const ultraParsed = JSON.parse(ultraClean);
-        console.log("✅ Successfully recovered with ultra cleaning.");
-        return ultraParsed;
-      } catch (err3) {
-        return { error: "Still invalid after fixing", raw: partial };
-      }
+      return { error: "Still invalid after fixing", raw: partial };
     }
   }
 };
-
-
-
 
 
 export const ccreateProduct = async (req, res) => {
@@ -231,6 +184,10 @@ export const ccreateProduct = async (req, res) => {
   }
 };
 
+
+
+// ... (keep the existing imports and configurations) ...
+
 // Expanded unit conversion with normalization
 const UNIT_NORMALIZATION = {
     // Weight
@@ -245,7 +202,8 @@ const UNIT_NORMALIZATION = {
     // Count
     unit: 'unit', piece: 'unit', pc: 'unit', 
     pack: 'pack', packet: 'pack', pkt: 'pack',
-    bunch: 'bunch', bn: 'bunch'
+    bunch: 'bunch', bn: 'bunch',
+    loaf: 'unit'  // Added loaf as unit
 };
 
 const convertToBaseUnit = (qtyStr) => {
@@ -301,253 +259,29 @@ const calculateRelevance = (item, product) => {
     if (product.category.toLowerCase() === item.category.toLowerCase()) {
         score += 0.1;
     }
+
     return score;
 };
-
-function parseQuantity(qtyStr) {
-  if (!qtyStr) return 0;
-  const match = qtyStr.match(/(\d+(\.\d+)?)\s*(\w+)/);
-  if (!match) return 0;
-  const value = parseFloat(match[1]);
-  const unit = match[3].toLowerCase().replace(/s$/, '');
-  const normalizedUnit = UNIT_NORMALIZATION[unit] || 'unit';
-  const conversionFactors = {
-    g: 1,
-    kg: 1000,
-    mg: 0.001,
-    l: 1000,
-    ml: 1,
-    unit: 1,
-    pack: 1,
-    bunch: 1
-  };
-  return value * (conversionFactors[normalizedUnit] || 1);
-}
-
-function mergeAIIngredients(aiList) {
-  const map = new Map();
-  for (const item of aiList) {
-    const key = item.name.toLowerCase();
-    if (map.has(key)) {
-      const existing = map.get(key);
-      existing.count++;
-      existing.quantity += parseQuantity(item.quantity);
-    } else {
-      map.set(key, {
-        name: key,
-        quantity: parseQuantity(item.quantity),
-        price: item.price || 60,
-        maxbudget: item.maxbudget || 5000,
-        count: 1,
-        purpose: item.dish || "General"
-      });
-    }
-  }
-  return [...map.values()];
-}
-
-// Synonym map for common ingredients
-const INGREDIENT_SYNONYMS = {
-  "all-purpose flour": ["maida", "flour", "refined flour"],
-  "penne pasta": ["pasta", "penne"],
-  "parmesan cheese": ["cheese", "parmesan"],
-  // Add more as needed
-};
-
-async function matchByHashtags(ingredientName, allProducts) {
-  const key = ingredientName.toLowerCase();
-  let matches = allProducts.filter((p) => {
-    if (!p.hashtags || typeof p.hashtags !== "string") return false;
-    return p.hashtags.toLowerCase().includes(key);
-  });
-  // Try synonyms if no matches
-  if (matches.length === 0 && INGREDIENT_SYNONYMS[key]) {
-    for (const synonym of INGREDIENT_SYNONYMS[key]) {
-      matches = allProducts.filter((p) => {
-        return (
-          (p.hashtags && p.hashtags.toLowerCase().includes(synonym)) ||
-          (p.name && p.name.toLowerCase().includes(synonym))
-        );
-      });
-      if (matches.length > 0) break;
-    }
-  }
-  // Try splitting ingredient into words and match any
-  if (matches.length === 0) {
-    const words = key.split(/\s+/);
-    matches = allProducts.filter((p) => {
-      const hay = (p.hashtags + " " + p.name).toLowerCase();
-      return words.some(word => hay.includes(word));
-    });
-  }
-  // Fuzzy match fallback
-  if (matches.length === 0) {
-    const names = allProducts.map(p => p.name.toLowerCase());
-    const best = stringSimilarity.findBestMatch(key, names);
-    if (best.bestMatch.rating > 0.4) {
-      matches = allProducts.filter(p => p.name.toLowerCase() === best.bestMatch.target);
-    }
-  }
-  return matches;
-}
-
-function prioritizeProductVariants(matches, targetQty, maxPrice) {
-  return matches
-    .map((item) => {
-      const q = parseQuantity(item.quantity);
-      const price = item.price;
-      return {
-        ...item.toObject(),
-        parsedQty: q,
-        deltaQty: Math.abs(targetQty - q),
-        deltaPrice: Math.abs(maxPrice - price),
-        valuePerRupee: q / price
-      };
-    })
-    .sort((a, b) => {
-      return (
-        a.deltaQty - b.deltaQty ||
-        a.deltaPrice - b.deltaPrice ||
-        b.valuePerRupee - a.valuePerRupee ||
-        a.price - b.price
-      );
-    });
-}
-
-function cleanProduct(product) {
-  const {
-    _id, name, price, quantity, category, description, hashtags,
-    imageUrl, parsedQty, deltaQty, deltaPrice, valuePerRupee, count
-  } = product;
-
-  return {
-    _id, name, price, quantity, category, description, hashtags,
-    imageUrl, parsedQty, deltaQty, deltaPrice, valuePerRupee, count
-  };
-};
-
-
 
 // Calculate required product count
 const calculateRequiredCount = (aiQuantity, productQuantity) => {
     const aiBase = convertToBaseUnit(aiQuantity);
     const productBase = convertToBaseUnit(productQuantity);
 
-    // Handle compatible units (g/ml)
-    if ((aiBase.unit === 'g' || aiBase.unit === 'ml') && 
-        (productBase.unit === 'g' || productBase.unit === 'ml')) {
+    // Handle compatible units
+    if (['g', 'ml', 'kg', 'l'].includes(aiBase.unit) && 
+        ['g', 'ml', 'kg', 'l'].includes(productBase.unit)) {
         return Math.max(1, Math.ceil(aiBase.value / productBase.value));
     }
-    return aiBase.unit === productBase.unit && productBase.value > 0 ?
-        Math.max(1, Math.ceil(aiBase.value / productBase.value)) : 1;
-};
-
-// Create product map from matrix
-const createProductMap = (matrix) => {
-    const productMap = new Map();
-    matrix.forEach(row => {
-        row.forEach(product => {
-            productMap.set(product._id.toString(), product);
-        });
-    });
-    return productMap;
-};
-
-
-
-// Price optimization function
-export const optimizeProductSelection = (matrix, maxBudget) => {
-    const optimizedMatrix = [];
-    let totalCost = 0;
-
-    matrix.forEach(row => {
-        if (row.length === 0) return;
-        
-        // Sort by price per unit
-        const sortedRow = [...row].sort((a, b) => {
-            if (a.isPlaceholder || b.isPlaceholder) return 0;
-            
-            const aBase = convertToBaseUnit(a.quantity).value;
-            const bBase = convertToBaseUnit(b.quantity).value;
-            
-            return (a.price / aBase) - (b.price / bBase);
-        });
-
-        // Select most cost-effective option
-        const selected = sortedRow[0];
-        
-        if (!selected.isPlaceholder) {
-            totalCost += selected.totalPrice;
-            
-            // Check budget constraint
-            if (maxBudget && totalCost > maxBudget) {
-                selected.budgetExceeded = true;
-            }
-        }
-
-        optimizedMatrix.push([selected]);
-    });
-
-  return {
-    _id, name, price, quantity, category, description, hashtags,
-    imageUrl, parsedQty, deltaQty, deltaPrice, valuePerRupee, count
-  };
-}
-
-export const handleGrocerySuggestion = async (req, res) => {
-  try {
-    const { prompt } = req.body;
-    if (!prompt || typeof prompt !== "string") {
-      return res.status(400).json({ error: "Prompt must be a valid string." });
+    
+    // Handle count-based units
+    if (['unit', 'pack', 'bunch', 'loaf'].includes(aiBase.unit) && 
+        aiBase.unit === productBase.unit) {
+        return Math.max(1, Math.ceil(aiBase.value / productBase.value));
     }
-
-    console.log("Received prompt:", prompt);
-    console.log("Request body:", req.body); // Debugging request body
-
-    const aiResponse = await getMistralResponse(prompt);
-    console.log("AI Response:", aiResponse);
-
-    if (!Array.isArray(aiResponse)) {
-      return res.status(500).json({ error: "Invalid AI response", raw: aiResponse });
-    }
-
-    const mergedIngredients = mergeAIIngredients(aiResponse);
-    console.log("Merged Ingredients:", mergedIngredients);
-
-    const allProducts = await Product.find({});
-    console.log("All Products from DB:", allProducts);
-
-    const matrix = [];
-
-    for (const ing of mergedIngredients) {
-      console.log("Processing ingredient:", ing.name);
-      const matches = await matchByHashtags(ing.name, allProducts);
-      console.log(`Matches for '${ing.name}':`, matches.map(m => m.name));
-
-      const prioritized = prioritizeProductVariants(matches, ing.quantity, ing.price);
-      console.log("Prioritized matches:", prioritized);
-
-      if (prioritized.length) {
-        prioritized[0].count = ing.count;
-      }
-      matrix.push(prioritized); // even if empty
-    }
-
-    const cleanedMatrix = matrix.map(group => group.map(cleanProduct));
-    const flatProducts = cleanedMatrix.flat();
-    return res.status(200).json({ products: flatProducts });
-  } catch (err) {
-    console.error("❌ handleGrocerySuggestion error:", err);
-    return res.status(500).json({ error: "Internal server error" });
-  }
-    return {
-        optimizedMatrix,
-        totalCost,
-        withinBudget: maxBudget ? totalCost <= maxBudget : true
-    };
+    
+    return 1;
 };
-
-
 
 // Enhanced product matching with category-aware search
 const findProductsByHashtag = async (itemName, itemCategory) => {
@@ -620,47 +354,49 @@ const findProductsByHashtag = async (itemName, itemCategory) => {
     }
 };
 
-// Update matrix function to use enhanced search
+// Update matrix function with proper grouping and quantity calculation
 export const updateProductMatrix = async (matrix, prompt) => {
     try {
         const items = await getMistralResponse(prompt);
         if (!Array.isArray(items)) throw new Error("Invalid AI response");
 
-        const productRegistry = new Map();
-        matrix.forEach(row => {
-            row.forEach(product => {
-                productRegistry.set(product._id.toString(), product);
-            });
-        });
-
-        // Process items with category-aware search
+        // Create a map to track grouped products
+        const productGroupMap = new Map();
+        
+        // Process each item from AI response
         for (const item of items) {
+            const groupKey = `${item.name.toLowerCase()}-${item.category.toLowerCase()}`;
+            
+            // Initialize group if not exists
+            if (!productGroupMap.has(groupKey)) {
+                productGroupMap.set(groupKey, {
+                    itemName: item.name,
+                    itemCategory: item.category,
+                    products: []
+                });
+            }
+            
+            const group = productGroupMap.get(groupKey);
             const products = await findProductsByHashtag(item.name, item.category);
-            const row = [];
             
             for (const product of products) {
-                const productId = product._id.toString();
                 const requiredCount = calculateRequiredCount(item.quantity, product.quantity);
+                const productId = product._id.toString();
                 
-                if (productRegistry.has(productId)) {
+                // Check if product already exists in group
+                const existingProduct = group.products.find(p => p._id.toString() === productId);
+                
+                if (existingProduct) {
                     // Update existing product
-                    const existing = productRegistry.get(productId);
-                    existing.requiredCount += requiredCount;
-                    
-                    if (!existing.ingredientSources) {
-                        existing.ingredientSources = [{
-                            name: item.name,
-                            quantity: item.quantity
-                        }];
-                    } else {
-                        existing.ingredientSources.push({
-                            name: item.name,
-                            quantity: item.quantity
-                        });
-                    }
+                    existingProduct.requiredCount += requiredCount;
+                    existingProduct.totalPrice = existingProduct.basePrice * existingProduct.requiredCount;
+                    existingProduct.ingredientSources.push({
+                        name: item.name,
+                        quantity: item.quantity
+                    });
                 } else {
-                    // Create new product entry
-                    const newProduct = {
+                    // Add new product
+                    group.products.push({
                         ...product.toObject(),
                         requiredCount,
                         ingredientSources: [{
@@ -669,18 +405,14 @@ export const updateProductMatrix = async (matrix, prompt) => {
                         }],
                         basePrice: product.price,
                         totalPrice: product.price * requiredCount
-                    };
-                    row.push(newProduct);
-                    productRegistry.set(productId, newProduct);
+                    });
                 }
             }
             
-            if (row.length > 0) {
-                matrix.push(row);
-            } else {
-                // Add placeholder with category info
-                matrix.push([{
-                    _id: `unmatched-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            // Add placeholder if no products found
+            if (group.products.length === 0) {
+                group.products.push({
+                    _id: `unmatched-${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
                     name: item.name,
                     quantity: item.quantity,
                     category: item.category,
@@ -690,8 +422,32 @@ export const updateProductMatrix = async (matrix, prompt) => {
                         name: item.name,
                         quantity: item.quantity
                     }]
-                }]);
+                });
             }
+        }
+        
+        // Process groups and add to matrix
+        for (const group of productGroupMap.values()) {
+            // Sort products by relevance
+            group.products.sort((a, b) => {
+                if (a.isPlaceholder && !b.isPlaceholder) return 1;
+                if (!a.isPlaceholder && b.isPlaceholder) return -1;
+                
+                // Calculate relevance scores
+                const relevanceA = calculateRelevance(
+                    { name: group.itemName, category: group.itemCategory },
+                    a
+                );
+                const relevanceB = calculateRelevance(
+                    { name: group.itemName, category: group.itemCategory },
+                    b
+                );
+                
+                return relevanceB - relevanceA; // Sort descending
+            });
+            
+            // Add group to matrix
+            matrix.push(group.products.slice(0, 3));
         }
         
         return matrix;
@@ -699,4 +455,46 @@ export const updateProductMatrix = async (matrix, prompt) => {
         console.error("Matrix update error:", error);
         throw error;
     }
+};
+
+// Price optimization function with budget enforcement
+export const optimizeProductSelection = (matrix, maxBudget) => {
+    const optimizedMatrix = [];
+    let totalCost = 0;
+    let budgetExceeded = false;
+
+    matrix.forEach(group => {
+        if (group.length === 0) return;
+        
+        // Sort by price per base unit
+        const sortedGroup = [...group].sort((a, b) => {
+            if (a.isPlaceholder || b.isPlaceholder) return 0;
+            
+            const aBase = convertToBaseUnit(a.quantity).value;
+            const bBase = convertToBaseUnit(b.quantity).value;
+            
+            return (a.price / aBase) - (b.price / bBase);
+        });
+
+        // Select most cost-effective option
+        const selected = sortedGroup[0];
+        
+        if (!selected.isPlaceholder) {
+            // Check if adding this would exceed budget
+            if (maxBudget && (totalCost + selected.totalPrice) > maxBudget) {
+                selected.budgetExceeded = true;
+                budgetExceeded = true;
+            } else {
+                totalCost += selected.totalPrice;
+            }
+        }
+
+        optimizedMatrix.push([selected]);
+    });
+
+    return {
+        optimizedMatrix,
+        totalCost,
+        withinBudget: !budgetExceeded
+    };
 };
