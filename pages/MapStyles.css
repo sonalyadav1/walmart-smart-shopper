@@ -1,0 +1,406 @@
+
+
+/* Map dashboard layout */
+.map-dashboard {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+.map-controls {
+  background: #2c3e50;
+  color: white;
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+  position: relative;
+  z-index: 10;
+}
+
+.map-title {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 600;
+}
+
+.navigation-controls {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.nav-btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.9rem;
+}
+
+.nav-btn:hover:not(:disabled) {
+  background: #2980b9;
+}
+
+.nav-btn:disabled {
+  background: #bdc3c7;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.path-progress {
+  background: rgba(255,255,255,0.1);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.9rem;
+}
+
+.map-wrapper {
+  display: flex;
+  flex: 1;
+  padding: 15px;
+  gap: 15px;
+  overflow: hidden;
+  height: calc(100vh - 60px);
+}
+
+.store-map {
+  flex: 1;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  z-index: 0;
+  border: 1px solid #ddd;
+  background: #e9f5e9;
+}
+
+.product-drawer {
+  width: 320px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.product-drawer-title {
+  background: #3498db;
+  color: white;
+  margin: 0;
+  padding: 12px 15px;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+}
+
+.cart-icon {
+  font-size: 1.3rem;
+}
+
+.item-count {
+  margin-left: auto;
+  background: rgba(0,0,0,0.2);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 0.85rem;
+}
+
+.product-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.product-card {
+  display: flex;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 8px;
+  background: white;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  transition: all 0.2s;
+  cursor: pointer;
+  align-items: flex-start;
+  position: relative;
+}
+
+.product-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.product-card.active {
+  transform: scale(1.02);
+  box-shadow: 0 0 0 2px #3498db;
+}
+
+.product-icon {
+  font-size: 1.4rem;
+  margin-right: 12px;
+  flex-shrink: 0;
+}
+
+.product-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.product-name {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.95rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.product-meta {
+  font-size: 0.8rem;
+  color: #666;
+}
+
+.product-category {
+  font-weight: 600;
+  display: block;
+}
+
+.product-index {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: #3498db;
+  color: white;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: bold;
+}
+
+/* Marker styles */
+.start-marker, .end-marker {
+  background: rgba(255,255,255,0.9);
+  border-radius: 4px;
+  padding: 2px 6px;
+  font-weight: bold;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  border: 2px solid white;
+  font-size: 0.8rem;
+}
+
+.start-marker div {
+  background: #4CAF50;
+  color: white;
+  border-radius: 3px;
+  padding: 2px;
+}
+
+.end-marker div {
+  background: #f44336;
+  color: white;
+  border-radius: 3px;
+  padding: 2px;
+}
+
+.current-marker .pulse {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 30px;
+  height: 30px;
+  background: #4285F4;
+  color: white;
+  border-radius: 50%;
+  font-weight: bold;
+  box-shadow: 0 0 0 rgba(66, 133, 244, 0.4);
+  animation: pulse 2s infinite;
+  border: 2px solid white;
+  font-size: 0.9rem;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(66, 133, 244, 0.4);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(66, 133, 244, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(66, 133, 244, 0);
+  }
+}
+
+/* Tooltip styles */
+.category-tooltip {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  font-weight: bold;
+}
+
+.category-tooltip.highlighted .tooltip-content {
+  transform: scale(1.05);
+}
+
+.tooltip-content {
+  background: rgba(255,255,255,0.95);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8rem;
+  text-align: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+  border: 1px solid rgba(0,0,0,0.1);
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+/* Loading and error states */
+.loading-container, .error-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  text-align: center;
+  background: #f5f7fa;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 5px solid rgba(52, 152, 219, 0.2);
+  border-top: 5px solid #3498db;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.error-icon {
+  font-size: 3rem;
+  color: #e74c3c;
+  margin-bottom: 15px;
+}
+
+.retry-btn {
+  background: #3498db;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: 15px;
+  transition: background 0.3s;
+}
+
+.retry-btn:hover {
+  background: #2980b9;
+}
+
+
+/* Add to your existing CSS */
+/* Bolder styling for map elements */
+.category-tooltip .tooltip-content {
+  font-weight: bold;
+  font-size: 1.1em;
+  padding: 6px 12px;
+}
+
+.group-card {
+  margin-bottom: 15px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  overflow: hidden;
+  transition: all 0.3s;
+}
+
+.group-card.active {
+  box-shadow: 0 0 0 3px #3498db;
+  transform: scale(1.02);
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: rgba(0,0,0,0.03);
+  border-bottom: 1px solid #eee;
+}
+
+.group-icon {
+  font-size: 1.8rem;
+  margin-right: 12px;
+}
+
+.group-info {
+  flex: 1;
+}
+
+.group-category {
+  font-size: 1.1rem;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.group-count {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.group-products {
+  padding: 8px 12px;
+  background: white;
+}
+
+.product-item {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.product-item:last-child {
+  border-bottom: none;
+}
+
+.product-item .product-icon {
+  font-size: 1.2rem;
+  margin-right: 10px;
+  width: 24px;
+  text-align: center;
+}
+
+.product-item .product-name {
+  font-size: 0.95rem;
+}
+
+/* Thicker borders for map elements */
+.start-marker, .end-marker {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.current-marker .pulse {
+  font-size: 1.1rem;
+  width: 35px;
+  height: 35px;
+}

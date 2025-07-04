@@ -1,10 +1,14 @@
 import { useState } from "react";
+import { useRouter } from 'next/router';
+
 
 export default function AIAgent() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [groupedProducts, setGroupedProducts] = useState([]);
+
+  const router = useRouter();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -37,6 +41,29 @@ export default function AIAgent() {
       setLoading(false);
     }
   }
+
+const handleFindPath = (groupedProducts) => {
+  if (!groupedProducts || groupedProducts.length === 0) {
+    alert("🛒 Your cart is empty. Add items first.");
+    return;
+  }
+
+  const flatProducts = groupedProducts.flat(); // because AI response is in nested array format
+  const productNames = flatProducts.map(item => item.name || item.productName);
+
+  console.log("🧭 Finding path for:", productNames);
+
+  // Store both for map use
+  localStorage.setItem("pathProducts", JSON.stringify(productNames));
+  localStorage.setItem("pathProductsDetails", JSON.stringify(flatProducts));
+
+  alert("📍 Path request stored! Opening map...");
+
+  
+  router.push("/map");
+};
+
+
 
   function handleDelete(indexToRemove) {
     const newGrouped = groupedProducts
@@ -162,6 +189,15 @@ export default function AIAgent() {
         💰 <span>Total Estimated Budget:</span> ₹{totalCost}
       </h2>
       <button className="cart-add-btn">🛍️ Add List to Cart</button>
+
+      <button
+    className="cart-path-btn"
+    onClick={() => handleFindPath(groupedProducts)}
+    style={{ marginTop: '10px', backgroundColor: '#28a745', color: '#fff', padding: '8px 12px', borderRadius: '5px' }}
+  >
+    🧭 Find Path on Map
+  </button>
+
     </div>
   </section>
 )}

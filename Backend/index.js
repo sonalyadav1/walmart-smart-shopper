@@ -4,6 +4,9 @@ import dotenv from "dotenv";
 import { connectDB } from "./connectDB.js";
 import productroute from "./Route/productroute.js"
 import upload from "./Controllers/multer.js";
+import seedStoreMap from "./Controllers/MapController.js";
+import { StoreMap } from "./Model/mapModel.js";
+
 
 dotenv.config();
 
@@ -23,7 +26,19 @@ app.post("/upload-test", upload.single("file"), (req, res) => {
   res.send(`uploaded: ${req.file.filename}`);
 });
 
+
+// Call seeding function ONCE if map not already present
+    const existingMap = await StoreMap.findOne({ storeName: "Walmart Superstore" });
+    if (!existingMap) {
+      await seedStoreMap();  // seed it only once
+      console.log("🟢 Store map seeded (first-time only).");
+    } else {
+      console.log("🟡 Store map already exists. Skipping seeding.");
+    }
+
 app.use("/api", productroute);
+
+
 
 
 app.get("/", (req, res) => {

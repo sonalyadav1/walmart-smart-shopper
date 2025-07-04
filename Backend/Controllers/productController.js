@@ -498,3 +498,22 @@ export const optimizeProductSelection = (matrix, maxBudget) => {
         withinBudget: !budgetExceeded
     };
 };
+
+
+
+
+
+
+
+
+export const getUniqueCategories = async (req, res) => {
+  try {
+    const categories = await Product.distinct('category');
+    res.status(200).json({
+      totalCategories: categories.length,
+      uniqueCategories: categories,
+    });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+};
