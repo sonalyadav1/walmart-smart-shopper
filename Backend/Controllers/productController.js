@@ -498,3 +498,88 @@ export const optimizeProductSelection = (matrix, maxBudget) => {
         withinBudget: !budgetExceeded
     };
 };
+
+// Get all products with optional pagination
+export const getAllProducts = async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
+    const totalProducts = await Product.countDocuments();
+    const products = await Product.find()
+      .skip(skip)
+      .limit(limit)
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      totalProducts,
+      currentPage: page,
+      totalPages: Math.ceil(totalProducts / limit),
+      products,
+    });
+  } catch (error) {
+    console.error("Error fetching products:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while fetching products",
+    });
+  }
+};
+
+// Search products by name with fuzzy matching  
+export const searchProductsByName = async (req, res) => {
+  try {
+    const { name } = req.query;
+
+    if (!name || name.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Product name is required for search",
+      });
+    }
+
+    const exactMatches = await Product.find({
+      name: { $regex: new RegExp(`^${name}$`, "i") },
+    });
+
+    if (exactMatches.length === 0) {
+      const partialMatches = await Product.find({
+        name: { $regex: name, $options: "i" },
+      });
+
+      if (partialMatches.length === 0) {
+        const hashtagMatches = await Product.find({
+          hashtags: { $regex: name, $options: "i" },
+        });
+        return res.status(200).json({
+          success: true,
+          matchType: "hashtag",
+          count: hashtagMatches.length,
+          products: hashtagMatches,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        matchType: "partial",
+        count: partialMatches.length,
+        products: partialMatches,
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      matchType: "exact",
+      count: exactMatches.length,
+      products: exactMatches,
+    });
+  } catch (error) {
+    console.error("Error searching products:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error while searching products",
+    });
+  }
+};

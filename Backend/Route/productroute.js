@@ -1,7 +1,7 @@
 import upload from "../Controllers/multer.js";
 // routes/productRoutes.js
 import express from "express";
-import { ccreateProduct,  getMistralResponse, optimizeProductSelection, updateProductMatrix } from "../Controllers/productController.js";
+import { ccreateProduct,  getMistralResponse, optimizeProductSelection, updateProductMatrix, getAllProducts, searchProductsByName } from "../Controllers/productController.js";
 
 const router = express.Router();
 
@@ -57,5 +57,8 @@ router.post('/matrix', async (req, res) => {
 //router.post("/suggest", handleGrocerySuggestion);
 
 router.post("/bulk", ccreateProduct)
+
+router.get("/products", getAllProducts);        // Get all products with pagination
+router.get("/search", searchProductsByName);    // Search products by name
 
 export default router;
