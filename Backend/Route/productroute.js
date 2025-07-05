@@ -1,7 +1,8 @@
 import upload from "../Controllers/multer.js";
 // routes/productRoutes.js
 import express from "express";
-import { ccreateProduct,  getMistralResponse, optimizeProductSelection, updateProductMatrix, getAllProducts, searchProductsByName } from "../Controllers/productController.js";
+import { ccreateProduct,  getMistralResponse, getUniqueCategories, optimizeProductSelection, updateProductMatrix, getAllProducts, searchProductsByName } from "../Controllers/productController.js";
+import { deleteStoreMap, getStoreMap } from "../Controllers/mapcont22.js";
 
 const router = express.Router();
 
@@ -52,6 +53,15 @@ router.post('/matrix', async (req, res) => {
         });
     }
 });
+
+
+
+router.get('/categories', getUniqueCategories);
+
+router.get('/map', getStoreMap);
+router.delete("/map", deleteStoreMap);
+
+
 
 // POST /api/grocery/suggest
 //router.post("/suggest", handleGrocerySuggestion);

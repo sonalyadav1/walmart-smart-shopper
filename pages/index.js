@@ -47,6 +47,14 @@ export default function Home() {
     }
   }
 
+   const handleNavigateToMap = () => {
+    router.push('/map'); // This navigates to your Leaflet map page
+  };
+
+
+
+
+
   return (
     <div className="walmart-bg">
       <header className="walmart-header-blue">
@@ -118,7 +126,7 @@ export default function Home() {
               <h3 className="walmart-feature-title">AI Smart Shopping</h3>
               <p className="walmart-feature-desc">Get personalized product recommendations based on your needs</p>
             </div>
-            <div className="walmart-feature-card">
+            <div className="walmart-feature-card" onClick={handleNavigateToMap} style={{ cursor: 'pointer' }}>
               <div className="walmart-feature-icon">
                 <svg className="walmart-feature-svg-icon" viewBox="0 0 24 24" fill="none">
                   <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" stroke="#0071ce" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
