@@ -3,7 +3,7 @@ import { StoreMap } from "../Model/mapModel.js";
 // Controller/storeMapController.js
 export const getStoreMap = async (req, res) => {
   try {
-    const storeName = req.query.storeName || "Walmart Superstore";
+    const storeName = req.query.storeName || "Walmart Superstore - Clean Layout";
 
     const storeMap = await StoreMap.findOne({ storeName });
 

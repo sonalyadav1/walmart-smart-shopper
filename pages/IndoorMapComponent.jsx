@@ -1,546 +1,511 @@
 'use client';
-
-import {
-  MapContainer,
-  Rectangle,
-  Polyline,
-  Marker,
-  Tooltip,
-  Polygon,
-  useMap
-} from 'react-leaflet';
-import { useEffect, useState, useMemo, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
-// HARDCODED STORE DIMENSIONS
-const STORE_WIDTH = 400;
-const STORE_HEIGHT = 500;
+// Fix Leaflet marker icons
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
+});
 
-function SetViewOnPoint({ point, zoom, allowUserInteraction, autoNavigate }) {
-  const map = useMap();
-
-  useEffect(() => {
-    if (!point || allowUserInteraction || !autoNavigate) return;
-
-    const timer = setTimeout(() => {
-      map.flyToBounds(L.latLngBounds([point, point]), {
-        padding: L.point(50, 50),
-        maxZoom: zoom,
-        duration: 1,
-        easeLinearity: 0.25,
-      });
-    }, 300);
-
-
-    console.log("Auto-flying to", point, "autoNavigate =", autoNavigate, "allowUserInteraction =", allowUserInteraction);
-
-    return () => clearTimeout(timer);
-  }, [point, zoom, allowUserInteraction, autoNavigate]);
-
-  return null;
-}
-
-
-const startPoint = [3, 3];
-
-const IndoorMapComponent = () => {
-  // State and refs
-  const [mapData, setMapData] = useState(null);
-  const [productList, setProductList] = useState([]);
-  const [path, setPath] = useState([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const mapRef = useRef(null);
-  const [mapReady, setMapReady] = useState(false);
-  const [currentPoint, setCurrentPoint] = useState(null);
-  const [currentZoom, setCurrentZoom] = useState(3);
-  const [allowUserInteraction, setAllowUserInteraction] = useState(true);
-  const [autoNavigate, setAutoNavigate] = useState(true);
-
-
-  // Fetch map data
-  useEffect(() => {
-    const fetchMapData = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('http://localhost:5000/api/map');
-        const data = await response.json();
-        setMapData(data);
+// Enhanced Dijkstra's algorithm with better pathfinding
+const dijkstra = (grid, start, end) => {
+  const rows = grid.length;
+  const cols = grid[0].length;
+  
+  // Create visited matrix and distance matrix
+  const visited = Array(rows).fill().map(() => Array(cols).fill(false));
+  const distances = Array(rows).fill().map(() => Array(cols).fill(Infinity));
+  const prev = Array(rows).fill().map(() => Array(cols).fill(null));
+  
+  // 4-direction movement (up, right, down, left)
+  const directions = [[-1, 0], [0, 1], [1, 0], [0, -1]];
+  
+  // Priority queue: [row, col, distance]
+  const queue = [];
+  
+  // Initialize start position
+  distances[start[1]][start[0]] = 0;
+  queue.push([start[1], start[0], 0]);
+  
+  while (queue.length > 0) {
+    // Sort queue by distance (priority queue)
+    queue.sort((a, b) => a[2] - b[2]);
+    const [r, c, dist] = queue.shift();
+    
+    // Skip if already visited
+    if (visited[r][c]) continue;
+    visited[r][c] = true;
+    
+    // Check if reached destination
+    if (r === end[1] && c === end[0]) break;
+    
+    // Explore neighbors
+    for (const [dr, dc] of directions) {
+      const nr = r + dr;
+      const nc = c + dc;
+      
+      // Check bounds and walkability
+      if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && grid[nr][nc] === 0) {
+        const newDist = dist + 1;
         
-        const detailed = JSON.parse(localStorage.getItem('pathProductsDetails')) || [];
-        const validProducts = detailed.flat().filter(p => p && p.name && p.category);
-        setProductList(validProducts);
+        if (newDist < distances[nr][nc]) {
+          distances[nr][nc] = newDist;
+          prev[nr][nc] = [r, c];
+          queue.push([nr, nc, newDist]);
+        }
+      }
+    }
+  }
+  
+  // Reconstruct path if exists
+  const path = [];
+  let [r, c] = [end[1], end[0]];
+  
+  // Check if path exists
+  if (prev[r][c] === null) {
+    console.error(`No path found from [${start}] to [${end}]`);
+    return [];
+  }
+  
+  // Reconstruct path backwards
+  while (r !== start[1] || c !== start[0]) {
+    path.push([c, r]); // [x, y]
+    [r, c] = prev[r][c];
+  }
+  
+  path.push([start[0], start[1]]);
+  return path.reverse();
+};
+
+// Improved path calculation
+const computeFullPath = (data, categories) => {
+  if (!data.specialAreas?.entrance) return;
+  
+  const entrance = data.specialAreas.entrance.position;
+  const checkout = data.specialAreas.checkout?.position;
+  let fullPath = [];
+  
+  // Start from entrance
+  let currentPoint = entrance;
+  
+  // Visit each category in order
+  for (const category of categories) {
+    const center = getCenter(category);
+    
+    // Calculate path to this category
+    const segment = dijkstra(data.grid, currentPoint, center);
+    
+    if (segment.length > 0) {
+      // Add segment to full path (skip first point to avoid duplicate)
+      fullPath = fullPath.concat(segment.slice(1));
+      currentPoint = center;
+    } else {
+      console.error(`No path to category: ${category.name} at [${center}]`);
+    }
+  }
+  
+  // Add path to checkout if exists
+  if (checkout) {
+    const checkoutSegment = dijkstra(data.grid, currentPoint, checkout);
+    if (checkoutSegment.length > 0) {
+      fullPath = fullPath.concat(checkoutSegment.slice(1));
+    }
+  }
+  
+  console.log("Full path points:", fullPath);
+  setPathPoints(fullPath);
+};
+
+const EnhancedStoreMap = () => {
+  // Refs and state declarations
+  const mapRef = useRef(null);
+  const mapInstance = useRef(null);
+  const pathLineRef = useRef(null);
+  const currentMarkerRef = useRef(null);
+  const gridLayerRef = useRef(null);
+  const markersRef = useRef([]);
+  const popupsRef = useRef([]);
+
+  const [mapData, setMapData] = useState(null);
+  const [pathPoints, setPathPoints] = useState([]);
+  const [currentStep, setCurrentStep] = useState(0);
+  const [activeCategory, setActiveCategory] = useState(null);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [groupedProducts, setGroupedProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/map");
+        const data = await res.json();
+        setMapData(data);
+
+        const storedProducts = JSON.parse(localStorage.getItem("pathProductsDetails")) || [];
+        const storedProductNames = JSON.parse(localStorage.getItem("pathProducts")) || [];
+
+        const grouped = {};
+        storedProducts.forEach(product => {
+          const color = data.categories?.find(c => c.name === product.category)?.color || '#a1887f';
+          if (!grouped[product.category]) {
+            grouped[product.category] = { category: product.category, products: [], color };
+          }
+          grouped[product.category].products.push(product);
+        });
+
+        setGroupedProducts(Object.values(grouped));
+        
+        // Compute full path for all categories
+        if (data.categories && data.specialAreas) {
+          const categoriesToVisit = data.categories.filter(cat => 
+            storedProductNames.includes(cat.name)
+          );
+          computeFullPath(data, categoriesToVisit);
+        }
       } catch (err) {
-        console.error('❌ Map fetch failed:', err);
-        setError('Failed to load store map data. Please try again later.');
+        setError("Failed to load store map. Please try again later.");
+        console.error(err);
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
-    
-    fetchMapData();
+
+    fetchData();
   }, []);
 
-  // Fly to current point when index changes - MODIFIED
+  // Navigation effect
   useEffect(() => {
-    if (path.length > 0 && currentIndex < path.length) {
-      const nextPoint = path[currentIndex];
-      
-      // Only update if point actually changed
-      if (!currentPoint || 
-          nextPoint[0] !== currentPoint[0] || 
-          nextPoint[1] !== currentPoint[1]) {
-        setCurrentPoint(nextPoint);
-        setCurrentZoom(2);
-       setAllowUserInteraction(prev => {
-  // Only disable if it's not already disabled
-  if (prev) return false;
-  return prev;
-});
-
-      }
+    if (isNavigating && currentStep < pathPoints.length - 1) {
+      const timer = setTimeout(() => {
+        setCurrentStep(prev => prev + 1);
+        setProgress(Math.floor(((currentStep + 1) / pathPoints.length) * 100));
+      }, 100); // Faster animation
+      return () => clearTimeout(timer);
+    } else if (currentStep >= pathPoints.length - 1) {
+      setIsNavigating(false);
     }
-  }, [currentIndex, path, currentPoint]); // Added currentPoint dependency
+  }, [isNavigating, currentStep, pathPoints]);
 
-  // Group products by category
-  const groupedProducts = useMemo(() => {
-    const groups = {};
-    
-    productList.forEach(product => {
-      if (!groups[product.category]) {
-        groups[product.category] = {
-          category: product.category,
-          products: []
-        };
-      }
-      groups[product.category].products.push(product);
+  useEffect(() => {
+    if (!mapData || !mapData.grid || mapInstance.current) return;
+
+    const gridWidth = mapData.grid[0].length;
+    const gridHeight = mapData.grid.length;
+
+    const bounds = L.latLngBounds([0, 0], [gridHeight * 10, gridWidth * 10]);
+
+    mapInstance.current = L.map(mapRef.current, {
+      crs: L.CRS.Simple,
+      minZoom: 0,
+      maxZoom: 2,
+      zoomControl: false,
     });
-    
-    return Object.values(groups);
-  }, [productList]);
 
-  // Process selected categories with validation
-  const selectedCategories = useMemo(() => {
-    if (!mapData || !mapData.categories || !Array.isArray(mapData.categories)) return [];
-    
-    return mapData.categories.filter(cat => 
-      groupedProducts.some(group => group.category === cat.name) &&
-      cat.position && 
-      cat.size
+    mapInstance.current.fitBounds(bounds);
+    setTimeout(() => mapInstance.current.invalidateSize(), 300);
+
+    gridLayerRef.current = L.layerGroup().addTo(mapInstance.current);
+    drawGrid(mapData.grid);
+    addCategoryLabels(mapData.categories);
+    addSpecialAreas(mapData.specialAreas);
+  }, [mapData]);
+
+  useEffect(() => {
+    if (!mapData || !mapInstance.current || pathPoints.length === 0) return;
+
+    if (pathLineRef.current) pathLineRef.current.remove();
+    markersRef.current.forEach(marker => marker.remove());
+    markersRef.current = [];
+
+    const latLngs = pathPoints.map(([x, y]) => L.latLng(y * 10 + 5, x * 10 + 5));
+    pathLineRef.current = L.polyline(latLngs, { 
+      color: '#4285f4', 
+      weight: 3,
+      dashArray: '5, 10'
+    }).addTo(mapInstance.current);
+
+    // Add markers for each category in the path
+    const categories = mapData.categories.filter(cat => 
+      groupedProducts.some(group => group.category === cat.name)
     );
-  }, [mapData, groupedProducts]);
+    
+    categories.forEach(category => {
+      const center = getCenter(category);
+      const marker = L.marker(L.latLng(center[1] * 10 + 5, center[0] * 10 + 5), {
+        icon: L.divIcon({
+          className: 'category-marker',
+          html: `<div style="background-color:${category.color}">${category.name}</div>`,
+          iconSize: [120, 40]
+        })
+      }).addTo(mapInstance.current);
+      markersRef.current.push(marker);
+    });
 
-  // Create optimized path with coordinate validation
-  const optimizedPath = useMemo(() => {
-    if (!mapData || !mapData.grid || selectedCategories.length === 0) return [];
+    updateCurrentPosition();
+  }, [pathPoints])
+  
+  
+  // Add this temporary debug code
+const testPath = dijkstra(mapData.grid, [1,1], [5,5]);
+console.log("Test path:", testPath);;
+
+  // Optimized path calculation to visit all categories
+  const computeFullPath = (data, categories) => {
+    if (!data.specialAreas?.entrance) return;
     
-    const points = [startPoint];
+    const entrance = data.specialAreas.entrance.position;
+    const checkout = data.specialAreas.checkout?.position;
+    let fullPath = [];
     
-    for (const cat of selectedCategories) {
-      const x = Math.floor(cat.position[0] + cat.size[0]/2);
-      const y = Math.floor(cat.position[1] + cat.size[1]/2);
+    // Start from entrance
+    let currentPoint = entrance;
+    
+    // Visit each category in order
+    for (const category of categories) {
+      const center = getCenter(category);
       
-      if (Number.isFinite(x) && Number.isFinite(y)) {
-        points.push([x, y]);
+      // Only calculate path if we're not already at the center
+      if (currentPoint[0] !== center[0] || currentPoint[1] !== center[1]) {
+        const segment = dijkstra(data.grid, currentPoint, center);
+        
+        if (segment.length > 0) {
+          // Add this segment to the full path (skip first point to avoid duplicate)
+          fullPath = [...fullPath, ...segment.slice(1)];
+          currentPoint = center;
+        }
       }
     }
     
-    return points.map(([x, y]) => [y + 0.5, x + 0.5]);
-  }, [mapData, selectedCategories]);
-
-
-
-
-const hasAutoNavigated = useRef(false);
-
-
-
-
-
-  // Update path when optimizedPath changes
-useEffect(() => {
-  if (optimizedPath.length > 0) {
-    setPath(optimizedPath);
-    setCurrentIndex(0);
-
-    if (autoNavigate) {
-      setCurrentPoint(optimizedPath[0]);  // ✅ only fly if autoNavigate still true
-      setCurrentZoom(5);
-      setAllowUserInteraction(false);
+    // Add path to checkout if exists
+    if (checkout && (currentPoint[0] !== checkout[0] || currentPoint[1] !== checkout[1])) {
+      const checkoutSegment = dijkstra(data.grid, currentPoint, checkout);
+      if (checkoutSegment.length > 0) {
+        fullPath = [...fullPath, ...checkoutSegment.slice(1)];
+      }
     }
-  }
-}, [optimizedPath, mapReady, autoNavigate]);
-
-
-
-  useEffect(() => {
-  if (
-    autoNavigate &&
-    path.length > 0 &&
-    currentIndex < path.length
-  ) {
-    setCurrentPoint(path[currentIndex]);
-    setCurrentZoom(2);
-    setAllowUserInteraction(false);
-  }
-}, [currentIndex, path, autoNavigate]);
-
-
-
-  const lastInteractionRef = useRef(Date.now());
-
-// Attach event once when map is ready
-useEffect(() => {
-  if (!mapRef.current) return;
-
-  const map = mapRef.current;
-
-  const handleMoveStart = () => {
-    lastInteractionRef.current = Date.now();
-    setAllowUserInteraction(true);
-    setAutoNavigate(false); // 🛑 Prevent future auto re-centering
-  };
-
-  map.on('movestart', handleMoveStart);
-
-  // Clean up
-  return () => {
-    map.off('movestart', handleMoveStart);
-  };
-}, [mapReady]);
-
-
-useEffect(() => {
-  console.log("autoNavigate is now:", autoNavigate);
-}, [autoNavigate]);
-
-
-// Auto-disable interaction after 2 seconds of inactivity
-useEffect(() => {
-  const timeout = setTimeout(() => {
-    const now = Date.now();
-    const diff = now - lastInteractionRef.current;
-
-    if (diff > 2000) {
-     // setAllowUserInteraction(false);
-    }
-  }, 2000); // Run this after 2s
-
-  return () => clearTimeout(timeout);
-}, [currentIndex]);
-
-
-
-  // Navigation handlers
-  const handleNextPoint = () => {
-    if (currentIndex >= path.length - 1) return;
- setAllowUserInteraction(prev => {
-  // Only disable if it's not already disabled
-  if (prev) return false;
-  return prev;
-});
-    // setAutoNavigate(true);
-    setCurrentIndex(prev => Math.min(prev + 1, path.length - 1));
-  };
-
-  const handlePrevPoint = () => {
-    if (currentIndex <= 0) return;
-   setAllowUserInteraction(prev => {
-  // Only disable if it's not already disabled
-  if (prev) return false;
-  return prev;
-});
-    //setAutoNavigate(true);
-    setCurrentIndex(prev => Math.max(prev - 1, 0));
-  };
-
-  // Render grid efficiently
-  const renderGrid = () => {
-    if (!mapData || !mapData.grid) return null;
     
-    return mapData.grid.map((row, y) => 
-      row.map((cell, x) => {
-        if (cell === 1) { // Shelf
-          return (
-            <Rectangle
-              key={`shelf-${x}-${y}`}
-              bounds={[[y, x], [y+1, x+1]]}
-              pathOptions={{ 
-                fillColor: '#a1887f', 
-                color: '#5d4037', 
-                fillOpacity: 0.7 
-              }}
-            />
-          );
-        } 
-        return null;
-      })
-    );
+    console.log("Full path points:", fullPath);
+    setPathPoints(fullPath);
   };
 
+  const startNavigation = () => {
+    if (pathPoints.length > 0) {
+      setCurrentStep(0);
+      setIsNavigating(true);
+      setProgress(0);
+    }
+  };
 
+  const getCenter = ({ position, size }) => [
+    Math.floor(position[0] + size[0] / 2),
+    Math.floor(position[1] + size[1] / 2)
+  ];
 
-  // Loading and error states
-  if (isLoading) {
-    return (
-      <div className="loading-container">
-        <div className="loading-spinner"></div>
-        <p>Loading store map...</p>
-      </div>
-    );
-  }
+  const updateCurrentPosition = () => {
+    currentMarkerRef.current?.remove();
 
-  if (error) {
-    return (
-      <div className="error-container">
-        <div className="error-icon">❌</div>
-        <p>{error}</p>
-        <button className="retry-btn" onClick={() => window.location.reload()}>
-          Try Again
-        </button>
-      </div>
-    );
-  }
+    if (currentStep >= pathPoints.length) return;
 
-  // Use HARDCODED dimensions as fallback
-  const width = mapData?.dimensions?.width || STORE_WIDTH;
-  const height = mapData?.dimensions?.height || STORE_HEIGHT;
+    const [x, y] = pathPoints[currentStep];
+    const marker = L.marker(L.latLng(y * 10 + 5, x * 10 + 5), {
+      icon: L.divIcon({
+        className: 'user-marker',
+        html: '<div class="user-icon">📍</div>',
+        iconSize: [30, 30]
+      })
+    }).addTo(mapInstance.current);
+    
+    currentMarkerRef.current = marker;
+    mapInstance.current.panTo(marker.getLatLng());
+  };
+
+  const drawGrid = (grid) => {
+    if (!mapInstance.current || !gridLayerRef.current) return;
+
+    gridLayerRef.current.clearLayers();
+    const colors = {
+      1: ['#d1bc9a', '#a1887f'],  // Shelves
+      0: ['#f8f9fa', '#e0e0e0'],  // Walkways
+      9: ['#a0a0a0', '#707070']   // Obstacles
+    };
+
+    // Only draw visible area for performance
+    const visibleRows = Math.min(100, grid.length);
+    const visibleCols = Math.min(200, grid[0].length);
+    
+    for (let y = 0; y < visibleRows; y++) {
+      for (let x = 0; x < visibleCols; x++) {
+        const cell = grid[y][x];
+        if (!colors[cell]) continue;
+        
+        const [fillColor, strokeColor] = colors[cell];
+        const bounds = L.latLngBounds(
+          L.latLng(y * 10, x * 10),
+          L.latLng((y + 1) * 10, (x + 1) * 10)
+        );
+
+        const rect = L.rectangle(bounds, {
+          color: strokeColor,
+          fillColor: fillColor,
+          fillOpacity: 1,
+          weight: 1
+        });
+
+        gridLayerRef.current.addLayer(rect);
+      }
+    }
+  };
+
+  const addCategoryLabels = (categories) => {
+    if (!categories || !mapInstance.current) return;
+    
+    // Clear previous popups
+    popupsRef.current.forEach(popup => popup.remove());
+    popupsRef.current = [];
+    
+    categories.forEach(category => {
+      const center = getCenter(category);
+      const centerLatLng = L.latLng(center[1] * 10, center[0] * 10);
+      
+      // Create category label
+      const label = L.marker(centerLatLng, {
+        icon: L.divIcon({
+          className: 'category-label',
+          html: `<div style="background-color:${category.color}">${category.name}</div>`,
+          iconSize: [120, 40]
+        }),
+        zIndexOffset: 1000
+      }).addTo(mapInstance.current);
+
+      markersRef.current.push(label);
+      
+      // Create popup content
+      const popupContent = `
+        <div class="category-popup">
+          <h4>${category.name}</h4>
+          <div class="shelf-info">
+            <span class="shelf-color" style="background-color:${category.color}"></span>
+            Size: ${category.size[0]}x${category.size[1]} units
+          </div>
+        </div>
+      `;
+      
+      // Create and bind popup
+      const popup = L.popup({ className: 'custom-popup' })
+        .setLatLng(centerLatLng)
+        .setContent(popupContent);
+      
+      label.bindPopup(popup);
+      popupsRef.current.push(popup);
+    });
+  };
+
+  const addSpecialAreas = (areas) => {
+    if (!areas || !mapInstance.current) return;
+
+    const addRect = (areaName, color, position, size) => {
+      const bounds = L.latLngBounds(
+        L.latLng(position[1] * 10, position[0] * 10),
+        L.latLng(position[1] * 10 + size[1] * 10, position[0] * 10 + size[0] * 10)
+      );
+
+      const rect = L.rectangle(bounds, {
+        color,
+        fillColor: color,
+        fillOpacity: 0.5
+      }).addTo(mapInstance.current);
+
+      markersRef.current.push(rect);
+      
+      // Add label
+      const center = [
+        position[0] + size[0] / 2,
+        position[1] + size[1] / 2
+      ];
+      
+      const areaLabel = L.marker(L.latLng(center[1] * 10, center[0] * 10), {
+        icon: L.divIcon({
+          className: 'special-label',
+          html: `<div>${areaName}</div>`,
+          iconSize: [100, 30]
+        })
+      }).addTo(mapInstance.current);
+      
+      markersRef.current.push(areaLabel);
+    };
+
+    if (areas.entrance) addRect("Entrance", "#34a853", areas.entrance.position, areas.entrance.size);
+    if (areas.checkout) addRect("Checkout", "#ea4335", areas.checkout.position, areas.checkout.size);
+  };
 
   return (
-    <div className="map-dashboard">
-      <div className="map-controls">
-        <h2 className="map-title">Store Navigation</h2>
-        <div className="navigation-controls">
-          <button 
-            className="nav-btn prev-btn" 
-            onClick={handlePrevPoint}
-            disabled={currentIndex <= 0}
-          >
-            ◀ Previous
-          </button>
-          <div className="path-progress">
-            Step {currentIndex + 1} of {path.length}
-          </div>
-          <button 
-            className="nav-btn next-btn" 
-            onClick={handleNextPoint}
-            disabled={currentIndex >= path.length - 1}
-          >
-            Next ▶
-          </button>
-        </div>
-      </div>
+    <div className="store-map-container">
+      <h1 className="text-2xl font-bold text-center mb-4">Walmart Indoor Navigator</h1>
       
-      <div className="map-wrapper">
-        <MapContainer
-  center={[height / 2, width / 2]}
-  zoom={3}
-  crs={L.CRS.Simple}
-  minZoom={1}
-  maxZoom={5}
-  maxBounds={[[0, 0], [height, width]]}
-  className="store-map"
-  scrollWheelZoom={true}        // ✅ allow zoom with mouse wheel
-  dragging={true}               // ✅ allow map dragging
-  doubleClickZoom={true}        // ✅ allow double click zoom
-  boxZoom={true}                // ✅ allow box zoom
-  keyboard={true}               // ✅ allow keyboard control
-  touchZoom={true}              // ✅ allow pinch-to-zoom
-  whenCreated={(map) => {
-    mapRef.current = map;
-    setMapReady(true);
-  }}
->
-
-          {/* Auto-scroll component */}
-          {currentPoint && (
-            <SetViewOnPoint 
-    point={currentPoint} 
-    zoom={currentZoom} 
-    allowUserInteraction={allowUserInteraction}
-    autoNavigate={autoNavigate} // ✅ PASS IT HERE
-  />
-          )}
-
-          {/* HARDCODED BOUNDARY RECTANGLE */}
-          <Rectangle
-            bounds={[[0, 0], [400, width]]}
-            pathOptions={{ 
-              color: '#000', 
-              weight: 5, 
-              fillOpacity: 0,
-              dashArray: "5, 5"
-            }}
-          />
-
-          {/* Render grid */}
-          {renderGrid()}
-
-          {/* Render checkout counters */}
-          {mapData?.specialAreas?.checkout && (
-            <Polygon
-              positions={mapData.specialAreas.checkout.coordinates.map(([x, y]) => [y, x])}
-              pathOptions={{
-                fillColor: mapData.specialAreas.checkout.color || '#FFA500',
-                color: '#000',
-                weight: 3, // Bolder border
-                fillOpacity: 0.8,
-              }}
-            >
-              <Tooltip permanent>Checkout Counters</Tooltip>
-            </Polygon>
-          )}
-
-          {/* Render categories with bolder borders */}
-          {mapData?.categories?.map((cat, index) => {
-            if (!cat.coordinates || cat.coordinates.length === 0) return null;
-            
-            const color = cat.color || '#c2dfff';
-            const isHighlighted = groupedProducts.some(p => p.category === cat.name);
-            const icon = cat.meta?.icon || '📦';
-
-            return (
-              <Polygon
-                key={`cat-${index}`}
-                positions={cat.coordinates.map(([x, y]) => [y, x])}
-                pathOptions={{
-                  fillColor: color,
-                  color: isHighlighted ? '#000' : '#333',
-                  weight: isHighlighted ? 4 : 3, // Bolder borders
-                  fillOpacity: isHighlighted ? 0.9 : 0.7,
-                }}
-              >
-                <Tooltip 
-                  direction="center" 
-                  permanent 
-                  opacity={1}
-                  className={`category-tooltip ${isHighlighted ? 'highlighted' : ''}`}
-                >
-                  <div className="tooltip-content" style={{ 
-                    backgroundColor: color,
-                    fontWeight: 'bold',
-                    fontSize: '1.1em'
-                  }}>
-                    <span className="category-icon">{icon}</span> {cat.name}
-                  </div>
-                </Tooltip>
-              </Polygon>
-            );
-          })}
+      {error && <p className="error-alert">{error}</p>}
+      {loading && <p className="loading-indicator">Loading store map...</p>}
+      
+      <div className="dashboard-layout">
+        <div className="map-section">
+          <div ref={mapRef} className="leaflet-map" />
           
-          {/* Render navigation path */}
-          {path.length > 1 && path.every(p => p[0] !== undefined && p[1] !== undefined) && (
-            <>
-              <Polyline
-                positions={path}
-                pathOptions={{ 
-                  color: '#4285F4', 
-                  weight: 5, // Thicker path
-                  dashArray: '8, 8',
-                  lineCap: 'round'
-                }}
-              />
-              {path[0] && (
-                <Marker 
-                  position={path[0]} 
-                  icon={L.divIcon({
-                    className: 'start-marker',
-                    html: '<div>START</div>',
-                    iconSize: [70, 35],
-                    iconAnchor: [35, 17],
-                  })}
-                />
-              )}
-              {path[path.length - 1] && (
-                <Marker 
-                  position={path[path.length - 1]} 
-                  icon={L.divIcon({
-                    className: 'end-marker',
-                    html: '<div>END</div>',
-                    iconSize: [70, 35],
-                    iconAnchor: [35, 17],
-                  })}
-                />
-              )}
-              {path[currentIndex] && (
-                <Marker 
-                  position={path[currentIndex]} 
-                  icon={L.divIcon({
-                    className: 'current-marker',
-                    html: `<div class="pulse">${currentIndex + 1}</div>`,
-                    iconSize: [35, 35],
-                    iconAnchor: [17, 17],
-                  })}
-                />
-              )}
-            </>
-          )}
-        </MapContainer>
-
-        <div className="product-drawer">
-          <h3 className="product-drawer-title">
-            <span className="cart-icon">🛒</span> 
-            Your Shopping Path
-            <span className="item-count">{productList.length} items</span>
-          </h3>
-          <div className="product-list">
-            {groupedProducts.map((group, groupIndex) => {
-              const category = mapData?.categories?.find(c => c.name === group.category);
-              const color = category?.color || '#c2dfff';
-              const icon = category?.meta?.icon || '📦';
-              
-              // Find if this category is the current step
-              const isCurrent = path[currentIndex] && 
-                currentIndex < path.length &&
-                group.category === selectedCategories[groupIndex]?.name;
-              
-              return (
-                <div 
-                  key={groupIndex} 
-                  className={`group-card ${isCurrent ? 'active' : ''}`}
-                  onClick={() => {
-  const catIndex = selectedCategories.findIndex(cat => cat.name === group.category);
-  if (catIndex !== -1) {
-   // setAutoNavigate(true); // ✅ again
-    setCurrentIndex(catIndex + 1);
-  }
-}}
-
-                  style={{ 
-                    borderLeft: `5px solid ${color}`,
-                    backgroundColor: isCurrent ? '#f0f7ff' : 'white'
-                  }}
-                >
-                  <div className="group-header">
-                    <div className="group-icon">{icon}</div>
-                    <div className="group-info">
-                      <strong className="group-category" style={{ color }}>
-                        {group.category}
-                      </strong>
-                      <div className="group-count">
-                        {group.products.length} items
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="group-products">
-                    {group.products.map((p, i) => (
-                      <div key={i} className="product-item">
-                        <div className="product-icon">{icon}</div>
-                        <div className="product-name">{p.name}</div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })}
+          <div className="navigation-controls">
+            <button 
+              onClick={startNavigation} 
+              disabled={isNavigating || pathPoints.length === 0}
+              className="nav-button"
+            >
+              {isNavigating ? 'Navigating...' : 'Start Full Navigation'}
+            </button>
+            
+            {isNavigating && (
+              <div className="progress-container">
+                <div className="progress-bar" style={{ width: `${progress}%` }}></div>
+                <span className="progress-text">{progress}%</span>
+              </div>
+            )}
           </div>
+        </div>
+        
+        <div className="products-section">
+          <h2 className="product-header">Your Shopping List</h2>
+          
+          {groupedProducts.length > 0 ? (
+            <div className="category-list">
+              {groupedProducts.map((group, index) => {
+                const category = mapData?.categories?.find(c => c.name === group.category);
+                return (
+                  <div 
+                    key={index} 
+                    className={`category-group ${activeCategory?.name === group.category ? 'active-category' : ''}`}
+                  >
+                    <h3 className="category-title" style={{ backgroundColor: group.color }}>
+                      {group.category}
+                    </h3>
+                    <ul className="product-list">
+                      {group.products.map((product, idx) => (
+                        <li key={idx} className="product-item">
+                          <span className="product-name">{product.name}</span>
+                          <span className="product-location">Aisle {product.aisle}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="no-products">No products added to your list</p>
+          )}
         </div>
       </div>
     </div>
   );
 };
 
-export default IndoorMapComponent;
+export default EnhancedStoreMap;

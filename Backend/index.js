@@ -4,7 +4,7 @@ import dotenv from "dotenv";
 import { connectDB } from "./connectDB.js";
 import productroute from "./Route/productroute.js"
 import upload from "./Controllers/multer.js";
-import seedStoreMap from "./Controllers/MapController.js";
+import {seedStoreMap} from "./Controllers/MapController.js";
 import { StoreMap } from "./Model/mapModel.js";
 
 
