@@ -1,0 +1,126 @@
+{
+  "Accessories": [
+    1440,
+    690
+  ],
+  "Bakery": [
+    1390,
+    540
+  ],
+  "Bath & Linen": [
+    1440,
+    390
+  ],
+  "Beachwear": [
+    1430,
+    240
+  ],
+  "Beverages": [
+    1130,
+    690
+  ],
+  "Clothing": [
+    1140,
+    540
+  ],
+  "Condiments": [
+    1090,
+    390
+  ],
+  "Dairy": [
+    1140,
+    240
+  ],
+  "Dairy & Eggs": [
+    790,
+    690
+  ],
+  "Dessert Mix": [
+    840,
+    540
+  ],
+  "Fashion Accessories": [
+    830,
+    390
+  ],
+  "Footwear": [
+    840,
+    240
+  ],
+  "Fruits": [
+    540,
+    690
+  ],
+  "Grains": [
+    530,
+    540
+  ],
+  "Grains & Flours": [
+    540,
+    390
+  ],
+  "Groceries": [
+    490,
+    240
+  ],
+  "Herbs & Spices": [
+    230,
+    690
+  ],
+  "Meat": [
+    240,
+    540
+  ],
+  "Oils": [
+    190,
+    390
+  ],
+  "Personal Care": [
+    240,
+    240
+  ],
+  "Poultry": [
+    240,
+    90
+  ],
+  "Ready to Cook": [
+    490,
+    90
+  ],
+  "Ready to Eat": [
+    840,
+    90
+  ],
+  "Snacks & Sweets": [
+    1130,
+    90
+  ],
+  "Spices": [
+    1440,
+    90
+  ],
+  "Sports & Outdoors": [
+    640,
+    840
+  ],
+  "Sportswear": [
+    390,
+    840
+  ],
+  "Sweets": [
+    980,
+    840
+  ],
+  "Travel Essentials": [
+    690,
+    140
+  ],
+  "Utensils": [
+    940,
+    140
+  ],
+  "Vegetables": [
+    390,
+    140
+  ]
+}

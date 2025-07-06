@@ -1,8 +1,8 @@
 import { StoreMap } from "../Model/mapModel.js";
 
 export const seedStoreMap = async () => {
-  const WIDTH = 200;
-  const HEIGHT = 100;
+  const WIDTH = 220;
+  const HEIGHT = 120;
   const WALKWAY = 0;
   const SHELF = 1;
   const BORDER = 9;
@@ -10,19 +10,37 @@ export const seedStoreMap = async () => {
   const grid = Array.from({ length: HEIGHT }, () => Array(WIDTH).fill(WALKWAY));
   const categories = [];
 
-  const markShelf = (x, y, w, h) => {
+  const markCells = (cells) => {
     const coords = [];
-    for (let dx = 0; dx < w; dx++) {
-      for (let dy = 0; dy < h; dy++) {
-        const px = x + dx;
-        const py = y + dy;
-        if (px >= 0 && px < WIDTH && py >= 0 && py < HEIGHT) {
-          grid[py][px] = SHELF;
-          coords.push([px, py]);
-        }
+    for (const [x, y] of cells) {
+      if (x >= 0 && x < WIDTH && y >= 0 && y < HEIGHT) {
+        grid[y][x] = SHELF;
+        coords.push([x, y]);
       }
     }
     return coords;
+  };
+
+  const drawRect = (x, y, w, h) => {
+    const cells = [];
+    for (let dx = 0; dx < w; dx++) {
+      for (let dy = 0; dy < h; dy++) {
+        cells.push([x + dx, y + dy]);
+      }
+    }
+    return cells;
+  };
+
+  const drawL = (x, y, w, h, verticalFirst = true) => {
+    const cells = [];
+    if (verticalFirst) {
+      for (let dy = 0; dy < h; dy++) cells.push([x, y + dy]);
+      for (let dx = 1; dx < w; dx++) cells.push([x + dx, y + h - 1]);
+    } else {
+      for (let dx = 0; dx < w; dx++) cells.push([x + dx, y]);
+      for (let dy = 1; dy < h; dy++) cells.push([x, y + dy]);
+    }
+    return cells;
   };
 
   const addBorders = () => {
@@ -34,105 +52,81 @@ export const seedStoreMap = async () => {
     }
   };
 
-  // Entrance and Checkout (bottom center)
   const entrance = {
-    position: [Math.floor(WIDTH / 2) - 20, HEIGHT - 6],
+    position: [10, HEIGHT - 10],
     size: [12, 6],
     orientation: "south",
   };
-  const checkoutPos = [entrance.position[0] + entrance.size[0] + 2, HEIGHT - 6];
+
+  const checkoutPos = [entrance.position[0] + entrance.size[0] + 4, HEIGHT - 10];
   const checkoutSize = [12, 6];
 
-  for (let x = entrance.position[0]; x < entrance.position[0] + entrance.size[0]; x++) {
-    for (let y = entrance.position[1]; y < HEIGHT; y++) grid[y][x] = WALKWAY;
-  }
+  const markShelf = (name, coords, shape) => {
+    const position = coords[0];
+    const xs = coords.map(c => c[0]);
+    const ys = coords.map(c => c[1]);
+    const size = [Math.max(...xs) - Math.min(...xs) + 1, Math.max(...ys) - Math.min(...ys) + 1];
 
-  const checkoutCoords = markShelf(checkoutPos[0], checkoutPos[1], ...checkoutSize);
-  categories.push({
-    name: "Checkout Counters",
-    position: checkoutPos,
-    size: checkoutSize,
-    coordinates: checkoutCoords,
-    shape: "rectangular",
-  });
+    categories.push({
+      name,
+      position: position,
+      size,
+      coordinates: coords,
+      shape
+    });
+  };
 
-  // Define shelves: 4 rows, 5 columns, with walkways
-  const startX = 10;
-  const startY = 10;
-  const shelfWidth = 28;
-  const shelfHeight = 8;
-  const gapX = 10;
-  const gapY = 10;
-  const rows = 4;
-  const cols = 5;
+  const categoryNames = [
+    "Freezer", "Beverages - Water", "Coffee - Tea - Cereal", "Baked Goods", "Chips - Condiments",
+    "Canned Foods - Grains", "Baking - Spices - Oil", "Dell", "Fruits", "Floral",
+    "Seafood", "Salt", "Vegetables", "Bulk", "Veg.", "Dairy & Eggs", "Meat", "Poultry", "Oils",
+    "Snacks & Sweets", "Sweets", "Dessert Mix", "Bath & Linen", "Personal Care",
+    "Clothing", "Beachwear", "Sportswear", "Footwear", "Accessories", "Sports & Outdoors",
+    "Stationery"
+  ];
 
-  const sectionNames = [
-  // Row 1
-  "Freezer",
-  "Beverages - Water",
-  "Coffee - Tea - Cereal",
-  "Baked Goods",
-  "Chips - Condiments",
+  const startX = 10, startY = 10;
+  let x = startX, y = startY;
+  let col = 0, row = 0;
+  const spacing = 6;
+  const rectW = 14, rectH = 6;
+  const lW = 10, lH = 6;
 
-  // Row 2
-  "Canned Foods - Grains",
-  "Baking - Spices - Oil",
-  "Dell",
-  "Fruits",
-  "Floral",
+  for (let i = 0; i < categoryNames.length; i++) {
+    const name = categoryNames[i];
+    let shape, coords;
 
-  // Row 3
-  "Seafood",
-  "Salt",
-  "Vegetables",
-  "Bulk",
-  "Veg.",
+    if (i % 3 === 0) {
+      // L-shaped shelf (vertical first)
+      coords = drawL(x, y, lW, lH, true);
+      shape = "L-shaped";
+    } else {
+      // Rectangular shelf
+      coords = drawRect(x, y, rectW, rectH);
+      shape = "rectangular";
+    }
 
-  // Row 4
-  "Vegetables",
-  "Dairy & Eggs",
-  "Meat",
-  "Poultry",
-  "Oils",
+    const placedCoords = markCells(coords);
+    markShelf(name, placedCoords, shape);
 
-  // Additional Categories
-  "Snacks & Sweets",
-  "Sweets",
-  "Dessert Mix",
-  "Bath & Linen",
-  "Personal Care",
-  "Clothing",
-  "Beachwear",
-  "Sportswear",
-  "Footwear",
-  "Accessories",
-  "Sports & Outdoors"
-];
+    x += rectW + spacing;
+    col++;
 
-
-  let sectionIndex = 0;
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const posX = startX + col * (shelfWidth + gapX);
-      const posY = startY + row * (shelfHeight + gapY);
-
-      const coords = markShelf(posX, posY, shelfWidth, shelfHeight);
-      categories.push({
-        name: sectionNames[sectionIndex] || `Section ${sectionIndex + 1}`,
-        position: [posX, posY],
-        size: [shelfWidth, shelfHeight],
-        coordinates: coords,
-        shape: "rectangular"
-      });
-      sectionIndex++;
+    if (x + rectW + spacing >= WIDTH - 20) {
+      x = startX;
+      y += rectH + spacing + 4;
+      row++;
     }
   }
 
+  // Mark entrance and checkout
+  const checkoutCoords = markCells(drawRect(...checkoutPos, ...checkoutSize));
+  markShelf("Checkout Counters", checkoutCoords, "rectangular");
+
   addBorders();
 
-  await StoreMap.deleteMany({});
   await StoreMap.create({
-    storeName: "Walmart Superstore - Clean Layout",
+    storeName: "Walmart Superstore",
     grid,
     categories,
     entrance,
@@ -147,5 +141,5 @@ export const seedStoreMap = async () => {
     }
   });
 
-  console.log("✅ Clean layout seeded with entrance m  emdm dm dm & checkout side-by-side and clear walkways.");
+  console.log("✅ Seeded store map with 31 shelves in mixed shapes and clear walkways.");
 };
