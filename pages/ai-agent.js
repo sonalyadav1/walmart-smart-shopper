@@ -1,12 +1,17 @@
 import { useState } from "react";
 import { useRouter } from 'next/router';
 
-
 export default function AIAgent() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [groupedProducts, setGroupedProducts] = useState([]);
+  const [alternativesModal, setAlternativesModal] = useState({
+    show: false,
+    productIndex: null,
+    alternatives: [],
+    loading: false
+  });
 
   const router = useRouter();
 
@@ -42,28 +47,23 @@ export default function AIAgent() {
     }
   }
 
-const handleFindPath = (groupedProducts) => {
-  if (!groupedProducts || groupedProducts.length === 0) {
-    alert("🛒 Your cart is empty. Add items first.");
-    return;
-  }
+  const handleFindPath = (groupedProducts) => {
+    if (!groupedProducts || groupedProducts.length === 0) {
+      alert("🛒 Your cart is empty. Add items first.");
+      return;
+    }
 
-  const flatProducts = groupedProducts.flat(); // because AI response is in nested array format
-  const productNames = flatProducts.map(item => item.name || item.productName);
+    const flatProducts = groupedProducts.flat();
+    const productNames = flatProducts.map(item => item.name || item.productName);
 
-  console.log("🧭 Finding path for:", productNames);
+    console.log("🧭 Finding path for:", productNames);
 
-  // Store both for map use
-  localStorage.setItem("pathProducts", JSON.stringify(productNames));
-  localStorage.setItem("pathProductsDetails", JSON.stringify(flatProducts));
+    localStorage.setItem("pathProducts", JSON.stringify(productNames));
+    localStorage.setItem("pathProductsDetails", JSON.stringify(flatProducts));
 
-  alert("📍 Path request stored! Opening map...");
-
-  
-  router.push("/map");
-};
-
-
+    alert("📍 Path request stored! Opening map...");
+    router.push("/map");
+  };
 
   function handleDelete(indexToRemove) {
     const newGrouped = groupedProducts
@@ -74,6 +74,80 @@ const handleFindPath = (groupedProducts) => {
     setGroupedProducts(reGrouped);
   }
 
+  async function showAlternatives(productIndex) {
+  const product = groupedProducts.flat()[productIndex];
+  if (!product) return;
+
+  // Log original name for debugging
+  console.log("Original product name:", product.name);
+
+  // Clean the name: lowercase and remove special characters
+  const cleanedName = product.name
+    .toLowerCase() // Convert to lowercase
+    .replace(/[-_/\\[\]]/g, ' ') // Replace special characters with spaces
+    .replace(/\s+/g, ' ') // Replace multiple spaces with single space
+    .trim(); // Remove leading/trailing spaces
+
+  // Log cleaned name for debugging
+  console.log("Cleaned product name:", cleanedName);
+
+  setAlternativesModal({
+    ...alternativesModal,
+    show: true,
+    productIndex,
+    loading: true,
+    alternatives: []
+  });
+
+  try {
+    // Make request with cleaned name
+    console.log("Making request with name:", cleanedName);
+    const res = await fetch(`http://localhost:5000/api/search?name=${encodeURIComponent(cleanedName)}`);
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.message || 'Failed to fetch alternatives');
+    }
+    
+    const data = await res.json();
+    console.log("Search results:", data);
+    
+    setAlternativesModal({
+      ...alternativesModal,
+      show: true,
+      productIndex,
+      loading: false,
+      alternatives: data.products.filter(p => p._id !== product._id)
+    });
+  } catch (err) {
+    console.error("Error fetching alternatives:", err);
+    setAlternativesModal({
+      ...alternativesModal,
+      loading: false,
+      alternatives: [],
+      error: err.message
+    });
+  }
+}
+
+  function handleSwap(alternativeProduct) {
+    if (alternativesModal.productIndex === null) return;
+
+    const flatProducts = groupedProducts.flat();
+    flatProducts[alternativesModal.productIndex] = alternativeProduct;
+
+    // Regroup the products
+    const reGrouped = flatProducts.map(item => [item]);
+    setGroupedProducts(reGrouped);
+    setAlternativesModal({ ...alternativesModal, show: false });
+  }
+
+  function handleAddToCart(alternativeProduct) {
+    const newProduct = [alternativeProduct];
+    setGroupedProducts([...groupedProducts, newProduct]);
+    setAlternativesModal({ ...alternativesModal, show: false });
+  }
+
   const flatProducts = groupedProducts.flat();
   const totalCost = flatProducts.reduce(
     (sum, p) => sum + (p.totalPrice || 0),
@@ -82,7 +156,172 @@ const handleFindPath = (groupedProducts) => {
 
   return (
     <div className="walmart-bg">
+      <style jsx>{`
+        .alternatives-btn {
+          background: #f0f0f0;
+          color: #0071dc;
+          border: 1px solid #0071dc;
+          border-radius: 4px;
+          padding: 4px 8px;
+          font-size: 12px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          margin-top: 8px;
+          transition: all 0.2s;
+        }
+        
+        .alternatives-btn:hover {
+          background: #0071dc;
+          color: white;
+        }
+        
+        .modal-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background: rgba(0, 0, 0, 0.5);
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          z-index: 1000;
+        }
+        
+        .modal-content {
+          background: white;
+          border-radius: 8px;
+          width: 80%;
+          max-width: 800px;
+          max-height: 80vh;
+          overflow-y: auto;
+          padding: 20px;
+          position: relative;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .modal-close {
+          position: absolute;
+          top: 15px;
+          right: 15px;
+          font-size: 24px;
+          cursor: pointer;
+          color: #666;
+          background: none;
+          border: none;
+        }
+        
+        .modal-close:hover {
+          color: #000;
+        }
+        
+        .modal-title {
+          color: #0071dc;
+          margin-bottom: 20px;
+          font-size: 20px;
+          font-weight: bold;
+        }
+        
+        .alternatives-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+          gap: 15px;
+          margin-top: 15px;
+        }
+        
+        .alternative-product {
+          border: 1px solid #e6e6e6;
+          border-radius: 8px;
+          padding: 15px;
+          transition: transform 0.2s;
+        }
+        
+        .alternative-product:hover {
+          transform: translateY(-3px);
+          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .alternative-product img {
+          width: 100%;
+          height: 150px;
+          object-fit: contain;
+          border-radius: 4px;
+          margin-bottom: 10px;
+        }
+        
+        .alternative-name {
+          font-weight: bold;
+          margin-bottom: 5px;
+          color: #333;
+        }
+        
+        .alternative-price {
+          color: #e63946;
+          font-weight: bold;
+          margin: 8px 0;
+        }
+        
+        .alternative-actions {
+          display: flex;
+          gap: 10px;
+          margin-top: 10px;
+        }
+        
+        .swap-btn {
+          background: #0071dc;
+          color: white;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          flex: 1;
+          font-size: 14px;
+        }
+        
+        .swap-btn:hover {
+          background: #005bb5;
+        }
+        
+        .add-btn {
+          background: #28a745;
+          color: white;
+          border: none;
+          padding: 8px 12px;
+          border-radius: 4px;
+          cursor: pointer;
+          flex: 1;
+          font-size: 14px;
+        }
+        
+        .add-btn:hover {
+          background: #218838;
+        }
+        
+        .loading-spinner {
+          display: inline-block;
+          width: 20px;
+          height: 20px;
+          border: 3px solid rgba(0, 113, 220, 0.3);
+          border-radius: 50%;
+          border-top-color: #0071dc;
+          animation: spin 1s ease-in-out infinite;
+        }
+        
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        
+        .no-alternatives {
+          text-align: center;
+          padding: 20px;
+          color: #666;
+        }
+      `}</style>
+
       <header className="walmart-header-blue">
+        {/* ... existing header code ... */}
         <div className="walmart-header-content">
           <div className="walmart-header-logo">
             <img src="/walmart-spark.svg" alt="Walmart Logo" className="walmart-spark-img" />
@@ -127,7 +366,7 @@ const handleFindPath = (groupedProducts) => {
       <main className="walmart-ai-main-top">
         <div className="walmart-ai-hero">
           <div className="walmart-ai-hero-content">
-            {flatProducts.length === 0 && (
+           {flatProducts.length === 0 && (
               <>
                 <h1 className="walmart-ai-title">AI Smart Shopper</h1>
                 <p className="walmart-ai-desc">
@@ -136,8 +375,7 @@ const handleFindPath = (groupedProducts) => {
                 </p>
               </>
             )}
-
-           {flatProducts.length > 0 && (
+            {flatProducts.length > 0 && (
   <section className="cart-section">
     <h2 className="cart-title">🛒 Your Smart Shopping List</h2>
 
@@ -163,6 +401,12 @@ const handleFindPath = (groupedProducts) => {
           <p className="cart-meta">
             <strong>Required Count:</strong> {product.requiredCount || 1}
           </p>
+          <button 
+                        className="alternatives-btn"
+                        onClick={() => showAlternatives(index)}
+                      >
+                        🔄 Alternatives & Similar
+                      </button>
           <p className="cart-meta">
             <strong>Price:</strong> ₹{product.price || product.totalPrice || 0}
           </p>
@@ -203,7 +447,8 @@ const handleFindPath = (groupedProducts) => {
 )}
 
 
-            <form className="walmart-ai-form-top" onSubmit={handleSubmit}>
+            {/* ... existing form code ... */}
+              <form className="walmart-ai-form-top" onSubmit={handleSubmit}>
               <div className="walmart-ai-input-container">
                 <input
                   className="walmart-ai-input"
@@ -228,9 +473,65 @@ const handleFindPath = (groupedProducts) => {
               </div>
               {error && <div className="walmart-ai-error">{error}</div>}
             </form>
+          
           </div>
         </div>
       </main>
+
+      {alternativesModal.show && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <button 
+              className="modal-close"
+              onClick={() => setAlternativesModal({ ...alternativesModal, show: false })}
+            >
+              ×
+            </button>
+            <h2 className="modal-title">Alternative Products</h2>
+            
+            {alternativesModal.loading ? (
+              <div style={{ textAlign: 'center', padding: '20px' }}>
+                <div className="loading-spinner"></div>
+                <p>Finding alternatives...</p>
+              </div>
+            ) : alternativesModal.alternatives.length === 0 ? (
+              <div className="no-alternatives">
+                No alternative products found
+              </div>
+            ) : (
+              <div className="alternatives-grid">
+                {alternativesModal.alternatives.map((product) => (
+                  <div key={product._id} className="alternative-product">
+                    
+                    <h3 className="alternative-name">{product.name}</h3>
+                    <p className="cart-meta">
+                      <strong>Category:</strong> {product.category || "N/A"}
+                    </p>
+                    <p className="cart-meta">
+                      <strong>Quantity:</strong> {product.quantity || "—"}
+                    </p>
+                    <p className="alternative-price">₹{product.price}</p>
+                    <div className="alternative-actions">
+                      <button 
+                        className="swap-btn"
+                        onClick={() => handleSwap(product)}
+                      >
+                        Swap
+                      </button>
+                      <button 
+                        className="add-btn"
+                        onClick={() => handleAddToCart(product)}
+                      >
+                        Add to Cart
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

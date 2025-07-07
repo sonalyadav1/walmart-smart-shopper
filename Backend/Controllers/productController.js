@@ -499,6 +499,11 @@ export const optimizeProductSelection = (matrix, maxBudget) => {
     };
 };
 
+
+
+
+
+
 // Get all products with optional pagination
 export const getAllProducts = async (req, res) => {
   try {
@@ -528,7 +533,9 @@ export const getAllProducts = async (req, res) => {
   }
 };
 
-// Search products by name with fuzzy matching  
+
+
+// Search products by name with intelligent fuzzy keyword matching
 export const searchProductsByName = async (req, res) => {
   try {
     const { name } = req.query;
@@ -540,27 +547,28 @@ export const searchProductsByName = async (req, res) => {
       });
     }
 
+    const lowerName = name.toLowerCase();
+
+    // Step 1: Try exact match
     const exactMatches = await Product.find({
       name: { $regex: new RegExp(`^${name}$`, "i") },
     });
 
-    if (exactMatches.length === 0) {
-      const partialMatches = await Product.find({
-        name: { $regex: name, $options: "i" },
+    if (exactMatches.length > 0) {
+      return res.status(200).json({
+        success: true,
+        matchType: "exact",
+        count: exactMatches.length,
+        products: exactMatches,
       });
+    }
 
-      if (partialMatches.length === 0) {
-        const hashtagMatches = await Product.find({
-          hashtags: { $regex: name, $options: "i" },
-        });
-        return res.status(200).json({
-          success: true,
-          matchType: "hashtag",
-          count: hashtagMatches.length,
-          products: hashtagMatches,
-        });
-      }
+    // Step 2: Partial match on entire name
+    const partialMatches = await Product.find({
+      name: { $regex: name, $options: "i" },
+    });
 
+    if (partialMatches.length > 0) {
       return res.status(200).json({
         success: true,
         matchType: "partial",
@@ -569,12 +577,25 @@ export const searchProductsByName = async (req, res) => {
       });
     }
 
-    res.status(200).json({
-      success: true,
-      matchType: "exact",
-      count: exactMatches.length,
-      products: exactMatches,
+    // Step 3: Smart keyword extraction from input (e.g., "gocheese" → ["go", "cheese"])
+    const keywords = await splitIntoTokens(name);
+
+    // Step 4: Match any of the tokens in name or hashtags
+    const keywordMatches = await Product.find({
+      $or: keywords.flatMap((token) => [
+        { name: { $regex: token, $options: "i" } },
+        { hashtags: { $regex: token, $options: "i" } },
+      ]),
     });
+
+    return res.status(200).json({
+      success: true,
+      matchType: "keyword",
+      tokensUsed: keywords,
+      count: keywordMatches.length,
+      products: keywordMatches,
+    });
+
   } catch (error) {
     console.error("Error searching products:", error);
     res.status(500).json({
@@ -583,6 +604,39 @@ export const searchProductsByName = async (req, res) => {
     });
   }
 };
+
+
+async function splitIntoTokens(input) {
+  const lower = input.toLowerCase();
+  const tokens = new Set();
+
+  // Step 1: Use regex-based basic splitting (camelCase, digits etc.)
+  const basicChunks = lower.match(/[a-z]+|[0-9]+/gi) || [];
+
+  basicChunks.forEach(chunk => tokens.add(chunk));
+
+  // Step 2: Get all unique words from your Product names and hashtags
+  const allProducts = await Product.find({}, "name hashtags");
+  const possibleWords = new Set();
+
+  for (let prod of allProducts) {
+    const combinedText = `${prod.name || ""} ${prod.hashtags || ""}`.toLowerCase();
+    const words = combinedText.split(/[\s,.\-_/]+/);
+    words.forEach(word => {
+      if (word.length >= 3) possibleWords.add(word);
+    });
+  }
+
+  // Step 3: Scan input for substrings that match known words
+  for (let word of possibleWords) {
+    if (lower.includes(word)) {
+      tokens.add(word);
+    }
+  }
+
+  return [...tokens];
+}
+
 
 export const getUniqueCategories = async (req, res) => {
   try {
