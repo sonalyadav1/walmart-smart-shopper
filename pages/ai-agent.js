@@ -130,6 +130,30 @@ export default function AIAgent() {
   }
 }
 
+const startDictation = () => {
+  if (typeof window === 'undefined' || !('webkitSpeechRecognition' in window)) {
+    alert("Speech recognition is not supported in this browser.");
+    return;
+  }
+
+  const recognition = new window.webkitSpeechRecognition();
+  recognition.lang = "en-IN";
+  recognition.continuous = false;
+  recognition.interimResults = false;
+
+  recognition.start();
+
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    setInput(prev => prev + (prev ? " " : "") + transcript);
+  };
+
+  recognition.onerror = (event) => {
+    console.error("Speech recognition error:", event.error);
+  };
+};
+
+
   function handleSwap(alternativeProduct) {
     if (alternativesModal.productIndex === null) return;
 
@@ -447,32 +471,46 @@ export default function AIAgent() {
 )}
 
 
-            {/* ... existing form code ... */}
-              <form className="walmart-ai-form-top" onSubmit={handleSubmit}>
-              <div className="walmart-ai-input-container">
-                <input
-                  className="walmart-ai-input"
-                  type="text"
-                  placeholder="e.g. pasta dinner for 4, cleaning supplies for kitchen"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  disabled={loading}
-                  required
-                />
-                <button
-                  className="walmart-ai-submit"
-                  type="submit"
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span className="walmart-loading">⏳ Loading...</span>
-                  ) : (
-                    <span>✨ Get Suggestions</span>
-                  )}
-                </button>
-              </div>
-              {error && <div className="walmart-ai-error">{error}</div>}
-            </form>
+            <form className="walmart-ai-form-top" onSubmit={handleSubmit}>
+  <div className="walmart-ai-input-container">
+    <input
+      className="walmart-ai-input"
+      type="text"
+      placeholder="e.g. pasta dinner for 4, cleaning supplies for kitchen"
+      value={input}
+      onChange={(e) => setInput(e.target.value)}
+      disabled={loading}
+      required
+    />
+    
+    {/* 🎤 Mic Button */}
+    <button
+      type="button"
+      className="mic-btn"
+      onClick={startDictation}
+      disabled={loading}
+      title="Dictate your shopping needs"
+    >
+      🎤
+    </button>
+
+    {/* Submit Button */}
+    <button
+      className="walmart-ai-submit"
+      type="submit"
+      disabled={loading}
+    >
+      {loading ? (
+        <span className="walmart-loading">⏳ Loading...</span>
+      ) : (
+        <span>✨ Get Suggestions</span>
+      )}
+    </button>
+  </div>
+
+  {error && <div className="walmart-ai-error">{error}</div>}
+</form>
+
           
           </div>
         </div>

@@ -2204,3 +2204,21 @@ body {
 .cart-add-btn:hover {
   background-color: #005bb5;
 }
+
+
+
+
+.mic-btn {
+  margin-left: 8px;
+  background: #e0f2fe;
+  border: none;
+  padding: 8px 10px;
+  font-size: 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.mic-btn:hover {
+  background: #bae6fd;
+}
