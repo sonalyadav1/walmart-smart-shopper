@@ -19,7 +19,5 @@
     <!-- Top left spark -->
     <rect x="-4" y="-35" width="8" height="20" rx="4" ry="4" fill="#FFC220" transform="rotate(300)"/>
     
-    <!-- Center circle -->
-    <circle cx="0" cy="0" r="6" fill="#FFC220"/>
   </g>
 </svg>
