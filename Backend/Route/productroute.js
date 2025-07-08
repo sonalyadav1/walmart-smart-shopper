@@ -1,7 +1,7 @@
 import upload from "../Controllers/multer.js";
 // routes/productRoutes.js
 import express from "express";
-import { ccreateProduct,  getMistralResponse, getUniqueCategories, optimizeProductSelection, updateProductMatrix, getAllProducts, searchProductsByName } from "../Controllers/productController.js";
+import { ccreateProduct,  getMistralResponse, getUniqueCategories, optimizeProductSelection, updateProductMatrix, getAllProducts, searchProductsByName, deleteProductById } from "../Controllers/productController.js";
 import { deleteStoreMap, getStoreMap } from "../Controllers/mapcont22.js";
 
 const router = express.Router();
@@ -67,6 +67,7 @@ router.delete("/map", deleteStoreMap);
 //router.post("/suggest", handleGrocerySuggestion);
 
 router.post("/bulk", ccreateProduct)
+router.delete("/:id", deleteProductById)
 
 router.get("/products", getAllProducts);        // Get all products with pagination
 router.get("/search", searchProductsByName);    // Search products by name

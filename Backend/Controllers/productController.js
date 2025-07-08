@@ -2,6 +2,7 @@ import { Product } from "../Model/productModel.js";
 import cloudinary from "./cloudinary.js";
 import fs from "fs";
 import OpenAI from "openai";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 import dotenv from "dotenv";
 import stringSimilarity from "string-similarity"; // you can use this package
 dotenv.config();
@@ -14,13 +15,14 @@ const openai = new OpenAI({
 });
 
 
-export const getMistralResponse = async (prompt) => {
-  const response = await openai.chat.completions.create({
-    model: "meta-llama/llama-4-scout-17b-16e-instruct",
-    messages: [
-      {
-        role: "system",
-        content: `
+const genAI = new GoogleGenerativeAI(process.env.GROQ_API_KEY);
+
+
+export const getMistralResponse = async (userPrompt) => {
+  try {
+    const model = genAI.getGenerativeModel({ model: "models/gemini-1.5-flash" });
+
+    const fullPrompt = `
 You are a structured grocery extraction assistant.
 
 Your task is to analyze the user's prompt about cooking dishes, meal plans, or events, and extract a list of necessary ingredients or items in **pure JSON format**. Each entry in the response must follow the structure defined below.
@@ -35,8 +37,13 @@ Your task is to analyze the user's prompt about cooking dishes, meal plans, or e
   - "food item"
   - "non-food item"
 - "dish": string — Name of the dish or context (e.g., "Paneer Butter Masala", "Dish A"). If no dish is specified, use an empty string "".
-- "category": string — Must be one of:
-  - "vegetable", "fruit", "flour", "dairy", "grocery", "laundry", "dress", "household", "beverage", "bakery"
+- "category": string — Must be one of the following EXACT categories:
+  "Freezer", "Beverages - Water", "Coffee - Tea - Cereal", "Baked Goods", "Chips - Condiments",
+  "Canned Foods - Grains", "Baking - Spices - Oil", "Dell", "Fruits", "Floral",
+  "Seafood", "Salt", "Vegetables", "Bulk", "Veg.", "Dairy & Eggs", "Meat", "Poultry", "Oils",
+  "Snacks & Sweets", "Sweets", "Dessert Mix", "Bath & Linen", "Personal Care",
+  "Clothing", "Beachwear", "Sportswear", "Footwear", "Accessories", "Sports & Outdoors",
+  "Stationery", "Party Supplies"
 - "maxbudget": number — Total user budget (INR) for this specific request (repeat for every item)
 
 ✅ Rules:
@@ -45,7 +52,11 @@ Your task is to analyze the user's prompt about cooking dishes, meal plans, or e
 - Do not include brands, cooking instructions, or any commentary.
 - Use realistic per-person estimates. Adjust quantities based on number of people (e.g., 6 people → 1.5 kg chicken).
 - Set default price to minimum 60.
-- Use user’s total budget as "maxbudget" on each item for further optimization.
+- Use user's total budget as "maxbudget" on each item for further optimization.
+- For party/event contexts, include relevant "Party Supplies" category items (balloons, candles, etc.).
+- For gifts, use "Sweets" category for chocolates/candies or "Toys" for other gifts.
+- Always match categories exactly from the provided list - never create new categories.
+- Analyze the user prompt context to determine if special categories apply (party supplies, gifts, etc.).
 
 ❌ Incorrect:
 {
@@ -56,77 +67,127 @@ Your task is to analyze the user's prompt about cooking dishes, meal plans, or e
 
 ✅ Correct:
 [
-  { "name": "turmeric", "quantity": "50 g", "price": 60, "type": "food item", "dish": "Dish A", "category": "grocery", "maxbudget": 3000 },
-  { "name": "cumin", "quantity": "50 g", "price": 60, "type": "food item", "dish": "Dish A", "category": "grocery", "maxbudget": 3000 }
+  { "name": "turmeric", "quantity": "50 g", "price": 60, "type": "food item", "dish": "Dish A", "category": "Baking - Spices - Oil", "maxbudget": 3000 },
+  { "name": "cumin", "quantity": "50 g", "price": 60, "type": "food item", "dish": "Dish A", "category": "Baking - Spices - Oil", "maxbudget": 3000 }
 ]
 
-📦 Example Final Response for: “I want to make chicken masala for 6 people under ₹3000”:
+📦 Example Final Response for: "I want to make chicken masala for 6 people under ₹3000":
 [
-  { "name": "chicken", "quantity": "1.5 kg", "price": 360, "type": "food item", "dish": "Chicken Masala", "category": "grocery", "maxbudget": 3000 },
-  { "name": "onion", "quantity": "500 g", "price": 70, "type": "food item", "dish": "Chicken Masala", "category": "vegetable", "maxbudget": 3000 },
-  { "name": "tomato", "quantity": "400 g", "price": 65, "type": "food item", "dish": "Chicken Masala", "category": "vegetable", "maxbudget": 3000 },
-  { "name": "ginger garlic paste", "quantity": "100 g", "price": 60, "type": "food item", "dish": "Chicken Masala", "category": "grocery", "maxbudget": 3000 },
-  { "name": "garam masala", "quantity": "50 g", "price": 65, "type": "food item", "dish": "Chicken Masala", "category": "grocery", "maxbudget": 3000 },
-  { "name": "curd", "quantity": "300 g", "price": 60, "type": "food item", "dish": "Chicken Masala", "category": "dairy", "maxbudget": 3000 }
+  { "name": "chicken", "quantity": "1.5 kg", "price": 360, "type": "food item", "dish": "Chicken Masala", "category": "Poultry", "maxbudget": 3000 },
+  { "name": "onion", "quantity": "500 g", "price": 70, "type": "food item", "dish": "Chicken Masala", "category": "Vegetables", "maxbudget": 3000 },
+  { "name": "tomato", "quantity": "400 g", "price": 65, "type": "food item", "dish": "Chicken Masala", "category": "Vegetables", "maxbudget": 3000 },
+  { "name": "ginger garlic paste", "quantity": "100 g", "price": 60, "type": "food item", "dish": "Chicken Masala", "category": "Baking - Spices - Oil", "maxbudget": 3000 },
+  { "name": "garam masala", "quantity": "50 g", "price": 65, "type": "food item", "dish": "Chicken Masala", "category": "Baking - Spices - Oil", "maxbudget": 3000 },
+  { "name": "curd", "quantity": "300 g", "price": 60, "type": "food item", "dish": "Chicken Masala", "category": "Dairy & Eggs", "maxbudget": 3000 }
 ]
 
-if not specified by user for budget assume from your self as context of the dish and user’s request.
+📦 Example for Party Context: "Planning a birthday party for 10 kids with budget ₹5000":
+[
+  { "name": "balloons", "quantity": "50 units", "price": 200, "type": "non-food item", "dish": "", "category": "Party Supplies", "maxbudget": 5000 },
+  { "name": "birthday candles", "quantity": "1 pack", "price": 100, "type": "non-food item", "dish": "", "category": "Party Supplies", "maxbudget": 5000 },
+  { "name": "chocolate", "quantity": "500 g", "price": 300, "type": "food item", "dish": "", "category": "Sweets", "maxbudget": 5000 },
+  { "name": "cake", "quantity": "2 kg", "price": 800, "type": "food item", "dish": "", "category": "Baked Goods", "maxbudget": 5000 }
+]
+
+do not send item such as "White Sauce Ingredients (Milk, Butter, Flour)" or "Pasta Ingredients (Pasta, Sauce, Cheese)" as a single item. Each ingredient must be separate.
+do not send item such as "Spices (turmeric, cumin, coriander)" as a single item. Each spice must be separate.
+
+if not specified by user for budget assume from your self as context of the dish and user's request.
+
+all gym related items are in Accessories category.
+
+User prompt: ${userPrompt}
 
 Return strictly only the JSON array.
-`.trim()
-,
-      },
-      {
-        role: "user",
-        content: prompt,
-      },
-    ],
-    temperature: 0.2,
-    max_tokens: 600,
-  });
+`.trim();
 
-  
-  let content = response.choices[0].message.content.trim();
+    const result = await model.generateContent(fullPrompt);
+    let content = result.response.text().trim();
+    console.log("Raw AI response:", content);
 
-  // Remove any non-ASCII characters that might break JSON
-  content = content.replace(/[^\x20-\x7E]+/g, "");
-
-  console.log("AI Response:", content);
-
-  try {
-    const parsed = JSON.parse(content);
-    if (Array.isArray(parsed)) return parsed;
-
-    return { error: "Parsed but not an array", raw: content };
-  } catch (err) {
-    console.warn("⚠️ Initial JSON parse failed. Attempting recovery...");
-
-    // Try to isolate a valid-looking array
-    const start = content.indexOf("[");
-    const end = content.lastIndexOf("}");
-
-    if (start === -1 || end === -1) {
-      console.error("❌ No valid JSON array found.");
-      return { error: "No JSON array detected", raw: content };
-    }
-
-    let partial = content.slice(start, end + 1);
-
-    // Ensure array ends with a closing bracket
-    if (!partial.endsWith("]")) partial += "]";
+    content = content.replace(/[^\x20-\x7E]+/g, "");
 
     try {
-      const fixed = JSON.parse(partial);
-      if (Array.isArray(fixed)) {
-        console.log("✅ Successfully recovered partial JSON.");
-        return fixed;
-      } else {
-        return { error: "Recovered but not an array", raw: partial };
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) return parsed;
+
+      return { error: "Parsed but not array", raw: content };
+    } catch (err) {
+      const start = content.indexOf("[");
+      const end = content.lastIndexOf("}");
+      if (start === -1 || end === -1) return { error: "Invalid JSON structure", raw: content };
+
+      let fixed = content.slice(start, end + 1);
+      if (!fixed.endsWith("]")) fixed += "]";
+
+      try {
+        const recovered = JSON.parse(fixed);
+        if (Array.isArray(recovered)) return recovered;
+        return { error: "Recovery failed", raw: fixed };
+      } catch {
+        return { error: "Still invalid after fixing", raw: fixed };
       }
-    } catch (err2) {
-      console.error("❌ JSON still broken after fixing:\n", partial);
-      return { error: "Still invalid after fixing", raw: partial };
     }
+  } catch (err) {
+    console.error("Gemini API Error:", err);
+    return { error: "Gemini API error", details: err.message };
+  }
+};
+
+
+
+export const cleanAndParseJSON = (rawContent) => {
+  try {
+    // Strip out non-ASCII characters (control characters, etc.)
+    let content = rawContent.replace(/[^\x20-\x7E]+/g, "").trim();
+
+    // Try direct parse first
+    try {
+      const parsed = JSON.parse(content);
+      if (Array.isArray(parsed)) return parsed;
+    } catch (_) {}
+
+    // Attempt to recover: Find array bounds
+    const start = content.indexOf("[");
+    const end = content.lastIndexOf("]");
+
+    if (start === -1 || end === -1) {
+      throw new Error("Array brackets not found");
+    }
+
+    let jsonLike = content.slice(start, end + 1);
+
+    // Fix common issues:
+    jsonLike = jsonLike
+      .replace(/“|”/g, '"')                        // curly quotes → straight
+      .replace(/,\s*}/g, '}')                      // trailing comma before }
+      .replace(/,\s*]/g, ']')                      // trailing comma before ]
+      .replace(/([{,])\s*"([^"]*)"\s*:\s*("[^"]*"|\d+|\[|\{)/g, '$1"$2": $3')  // normalize key-value
+      .replace(/\\"/g, '"')                        // unescape double quotes
+      .replace(/"([^"]*)"\s*:\s*""([^"]*)""/g, '"$1": "$2"') // double quoted strings inside strings
+      .replace(/\bNaN\b/g, 'null')                 // NaN → null
+      .replace(/\bundefined\b/g, 'null');          // undefined → null
+
+    // Remove duplicate/malformed keys or objects
+    const tryFixQuotes = jsonLike.replace(/(["'])(?:(?=(\\?))\2.)*?\1/g, (match) => {
+      try {
+        JSON.parse(match); return match;
+      } catch {
+        return match.replace(/["']/g, '"');
+      }
+    });
+
+    // Try final parse
+    const fixed = JSON.parse(tryFixQuotes);
+    if (Array.isArray(fixed)) {
+      console.log("✅ Cleaned and parsed JSON successfully.");
+      return fixed;
+    } else {
+      return { error: "Fixed structure but not array", raw: tryFixQuotes };
+    }
+  } catch (err) {
+    console.error("❌ JSON repair failed:", err.message);
+    return { error: "Unable to parse or fix JSON", raw: rawContent };
   }
 };
 
@@ -286,6 +347,7 @@ const calculateRequiredCount = (aiQuantity, productQuantity) => {
 // Enhanced product matching with category-aware search
 const findProductsByHashtag = async (itemName, itemCategory) => {
     try {
+        console.log(`Searching for products matching "${itemName}" in category "${itemCategory}"`);
         const normalizedItemName = itemName.toLowerCase().trim();
         const normalizedCategory = itemCategory.toLowerCase().trim();
         const searchTerms = [
@@ -349,7 +411,7 @@ const findProductsByHashtag = async (itemName, itemCategory) => {
         }).limit(5);
         
     } catch (error) {
-        console.error(`Search failed for "${itemName}":`, error);
+        console.error(`Search failed for "${itemName}":, error`);
         return [];
     }
 };
@@ -548,10 +610,11 @@ export const searchProductsByName = async (req, res) => {
     }
 
     const lowerName = name.toLowerCase();
+    const escapedName = escapeRegex(name); // Escape user input
 
     // Step 1: Try exact match
     const exactMatches = await Product.find({
-      name: { $regex: new RegExp(`^${name}$`, "i") },
+      name: { $regex: new RegExp(`^${escapedName}$`, "i") },
     });
 
     if (exactMatches.length > 0) {
@@ -565,7 +628,7 @@ export const searchProductsByName = async (req, res) => {
 
     // Step 2: Partial match on entire name
     const partialMatches = await Product.find({
-      name: { $regex: name, $options: "i" },
+      name: { $regex: escapedName, $options: "i" },
     });
 
     if (partialMatches.length > 0) {
@@ -583,8 +646,8 @@ export const searchProductsByName = async (req, res) => {
     // Step 4: Match any of the tokens in name or hashtags
     const keywordMatches = await Product.find({
       $or: keywords.flatMap((token) => [
-        { name: { $regex: token, $options: "i" } },
-        { hashtags: { $regex: token, $options: "i" } },
+        { name: { $regex: escapeRegex(token), $options: "i" } },
+        { hashtags: { $regex: escapeRegex(token), $options: "i" } },
       ]),
     });
 
@@ -605,17 +668,21 @@ export const searchProductsByName = async (req, res) => {
   }
 };
 
+// Utility to escape regex special characters
+function escapeRegex(string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
+// Token extractor
 async function splitIntoTokens(input) {
   const lower = input.toLowerCase();
   const tokens = new Set();
 
-  // Step 1: Use regex-based basic splitting (camelCase, digits etc.)
+  // Step 1: Basic splitting (words and digits)
   const basicChunks = lower.match(/[a-z]+|[0-9]+/gi) || [];
-
   basicChunks.forEach(chunk => tokens.add(chunk));
 
-  // Step 2: Get all unique words from your Product names and hashtags
+  // Step 2: Collect known words from all product names and hashtags
   const allProducts = await Product.find({}, "name hashtags");
   const possibleWords = new Set();
 
@@ -627,7 +694,7 @@ async function splitIntoTokens(input) {
     });
   }
 
-  // Step 3: Scan input for substrings that match known words
+  // Step 3: Match substrings from input with known words
   for (let word of possibleWords) {
     if (lower.includes(word)) {
       tokens.add(word);
@@ -647,5 +714,34 @@ export const getUniqueCategories = async (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch categories' });
+  }
+};
+
+
+
+export const deleteProductById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const deletedProduct = await Product.findByIdAndDelete(id);
+
+    if (!deletedProduct) {
+      return res.status(404).json({
+        success: false,
+        message: 'Product not found or already deleted',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Product deleted successfully',
+      deletedProduct,
+    });
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error while deleting product',
+    });
   }
 };
